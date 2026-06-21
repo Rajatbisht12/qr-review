@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import LogoutButton from "@/components/LogoutButton";
+import { getRequestOrigin } from "@/lib/qr";
 import CreateTenantForm from "./CreateTenantForm";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +12,10 @@ export default async function AdminPage() {
   const session = await getSession();
   if (!session || session.role !== "admin") redirect("/admin/login");
 
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || "localhost:3000";
+  // Derive the live host so onboarding shows the real domain (Vercel/custom/localhost).
+  const routingMode = process.env.NEXT_PUBLIC_TENANT_ROUTING || "path";
+  const host = (await getRequestOrigin()).replace(/^https?:\/\//, "");
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || host;
   const period = (() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -68,7 +72,7 @@ export default async function AdminPage() {
               Tenants
             </h2>
           </div>
-          <CreateTenantForm rootDomain={rootDomain} />
+          <CreateTenantForm mode={routingMode} host={host} rootDomain={rootDomain} />
 
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
             <table className="w-full text-sm">

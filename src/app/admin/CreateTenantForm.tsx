@@ -3,7 +3,15 @@
 import { useActionState, useState } from "react";
 import { createTenant } from "./actions";
 
-export default function CreateTenantForm({ rootDomain }: { rootDomain: string }) {
+export default function CreateTenantForm({
+  mode,
+  host,
+  rootDomain,
+}: {
+  mode: string;
+  host: string;
+  rootDomain: string;
+}) {
   const [state, action, pending] = useActionState(createTenant, {});
   const [open, setOpen] = useState(false);
   const [subdomain, setSubdomain] = useState("");
@@ -45,18 +53,33 @@ export default function CreateTenantForm({ rootDomain }: { rootDomain: string })
           />
         </div>
         <div>
-          <label className="text-sm font-medium text-slate-700">Subdomain</label>
-          <div className="mt-1 flex items-center rounded-lg border border-slate-300">
+          <label className="text-sm font-medium text-slate-700">
+            {mode === "subdomain" ? "Subdomain" : "Tenant slug"}
+          </label>
+          <div className="mt-1 flex items-center overflow-hidden rounded-lg border border-slate-300">
+            {mode === "path" && (
+              <span className="whitespace-nowrap pl-2 text-xs text-slate-400">{host}/s/</span>
+            )}
             <input
               name="subdomain"
               required
               value={subdomain}
               onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
               placeholder="pizzapalace"
-              className="w-full rounded-l-lg p-2.5 text-sm focus:outline-none"
+              className="w-full p-2.5 text-sm focus:outline-none"
             />
-            <span className="whitespace-nowrap px-2 text-xs text-slate-400">.{rootDomain}</span>
+            {mode === "subdomain" && (
+              <span className="whitespace-nowrap px-2 text-xs text-slate-400">.{rootDomain}</span>
+            )}
           </div>
+          {subdomain && (
+            <p className="mt-1 truncate text-xs text-slate-400">
+              Customer page:{" "}
+              {mode === "subdomain"
+                ? `${subdomain}.${rootDomain}`
+                : `${host}/s/${subdomain}`}
+            </p>
+          )}
         </div>
         <div>
           <label className="text-sm font-medium text-slate-700">Category</label>

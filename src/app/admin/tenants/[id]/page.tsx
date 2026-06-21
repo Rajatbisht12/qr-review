@@ -31,11 +31,11 @@ export default async function TenantAdminPage({
   });
   if (!tenant) notFound();
 
-  const [analytics, qr] = await Promise.all([
+  const [analytics, qr, publicUrl] = await Promise.all([
     getTenantAnalytics(tenant.id),
     tenantQrDataUrl(tenant.subdomain),
+    tenantPublicUrl(tenant.subdomain),
   ]);
-  const publicUrl = tenantPublicUrl(tenant.subdomain);
   const contact = tenant.contacts[0];
 
   return (
