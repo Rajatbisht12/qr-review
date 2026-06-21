@@ -1,0 +1,168 @@
+// QR Review & Feedback Platform — data model.
+// PostgreSQL (works locally and on Vercel; set DATABASE_URL to your Postgres connection).
+// NOTE: enums are stored as plain strings for portability across DB engines.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Plans define monthly quotas and feature flags for billing (6.7).
+model Plan {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  monthlyQuota Int // scans + alerts allowance
+  priceCents   Int      @default(0)
+  features     String   @default("{}") // JSON string
+  createdAt    DateTime @default(now())
+  tenants      Tenant[]
+}
+
+/// A tenant = one business with its own subdomain + branding (6.1).
+model Tenant {
+  id              String   @id @default(cuid())
+  subdomain       String   @unique
+  businessName    String
+  category        String   @default("restaurant") // restaurant | salon | cafe | retail
+  googleReviewUrl String   @default("")
+  status          String   @default("active") // active | suspended
+  planId          String?
+  createdAt       DateTime @default(now())
+
+  // ⚠️ COMPLIANCE WARNING (added by explicit owner request, against PRD C2 / non-goals):
+  // When true, customers rating >= sampleReviewThreshold are shown pre-written sample
+  // reviews to copy & paste. This conflicts with FTC 16 CFR §465.2 (reviews must be the
+  // poster's own words) and Google's fake-content policy. OFF by default; each business
+  // must opt in knowingly. See `reviewTemplates`.
+  sampleReviewsEnabled  Boolean @default(false)
+  sampleReviewThreshold Int     @default(3)
+
+  plan            Plan?            @relation(fields: [planId], references: [id])
+  theme           TenantTheme?
+  contacts        ManagerContact[]
+  feedback        Feedback[]
+  alerts          AlertLog[]
+  events          Event[]
+  usage           UsageMeter[]
+  users           User[]
+  reviewTemplates ReviewTemplate[]
+}
+
+/// ⚠️ Pre-written "sample reviews" a business stores for customers to copy/paste.
+/// Provided by explicit owner request. Authored & managed by the business owner in admin.
+/// NOTE: serving these as paste-ready reviews carries FTC/Google fake-review risk (see Tenant).
+model ReviewTemplate {
+  id        String   @id @default(cuid())
+  tenantId  String
+  text      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+/// Per-tenant branding & copy, resolved at request time — no deploy per client (6.2).
+model TenantTheme {
+  id             String  @id @default(cuid())
+  tenantId       String  @unique
+  logoUrl        String?
+  colorPrimary   String  @default("#4f46e5")
+  colorSecondary String  @default("#0ea5e9")
+  language       String  @default("en")
+  welcomeMessage String  @default("How was your visit?")
+  thankYouMessage String @default("Thank you for your feedback!")
+  copyOverrides  String  @default("{}") // JSON string
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+/// Manager WhatsApp numbers + alert preferences (6.5).
+model ManagerContact {
+  id                String  @id @default(cuid())
+  tenantId          String
+  name              String  @default("Manager")
+  whatsappNumber    String
+  alertThreshold    Int     @default(2) // alert when rating <= threshold
+  alertOnAnyPrivate Boolean @default(true) // also alert on any private feedback
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+/// Captured feedback. NEVER stores generated/pasteable review text — by design (6.3, §7).
+model Feedback {
+  id           String    @id @default(cuid())
+  tenantId     String
+  rating       Int
+  feedbackText String? // customer's own private note, optional
+  contactName  String?
+  contactPhone String?
+  contactEmail String?
+  channel      String    @default("qr")
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  alerts AlertLog[]
+}
+
+/// Delivery log for WhatsApp/email alerts (6.5).
+model AlertLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  feedbackId String?
+  channel    String   @default("whatsapp") // whatsapp | email
+  status     String   @default("queued") // queued | sent | failed
+  payload    String   @default("{}") // JSON string
+  error      String?
+  sentAt     DateTime @default(now())
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  feedback Feedback? @relation(fields: [feedbackId], references: [id], onDelete: SetNull)
+}
+
+/// Funnel events for compliant, rating-agnostic analytics (6.6, §9 auditability).
+/// type: scan | rating | google_cta_click | private_submit
+model Event {
+  id        String   @id @default(cuid())
+  tenantId  String
+  type      String
+  rating    Int? // present for rating / google_cta_click to prove path is rating-agnostic
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, type])
+}
+
+/// Per-period usage metering for billing & quota (6.7).
+model UsageMeter {
+  id     String @id @default(cuid())
+  tenantId String
+  period String // e.g. "2026-06"
+  scans  Int    @default(0)
+  alerts Int    @default(0)
+  quota  Int    @default(1000)
+  topups Int    @default(0)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, period])
+}
+
+/// Auth. role: admin | manager. Managers are scoped to a tenant.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         String   @default("manager") // admin | manager
+  tenantId     String?
+  createdAt    DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
