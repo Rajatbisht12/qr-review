@@ -17,11 +17,7 @@ export function ResolveButton({
     <button
       onClick={() => start(() => resolveFeedback(feedbackId, subdomain))}
       disabled={pending}
-      className={`rounded-md px-3 py-1.5 text-xs font-medium ${
-        resolved
-          ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
-          : "bg-emerald-600 text-white hover:bg-emerald-700"
-      } disabled:opacity-50`}
+      className={resolved ? "warm-btn-ghost px-3 py-1.5 text-xs" : "warm-btn px-3 py-1.5 text-xs"}
     >
       {resolved ? "Reopen" : "Mark resolved"}
     </button>
@@ -59,40 +55,35 @@ export function WhatsAppSettings({
   return (
     <div className="space-y-3">
       <div>
-        <label className="text-sm font-medium text-slate-700">WhatsApp number</label>
+        <label className="warm-label">WhatsApp number</label>
         <input
           value={number}
           onChange={(e) => setNumber(e.target.value)}
           placeholder="+91…"
-          className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm"
+          className="warm-input mt-1.5"
         />
       </div>
       <div>
-        <label className="text-sm font-medium text-slate-700">
-          Alert me when rating is ≤ {threshold}
-        </label>
+        <label className="warm-label">Alert me when rating is ≤ {threshold}</label>
         <input
           type="range"
           min={1}
           max={5}
           value={threshold}
           onChange={(e) => setThreshold(Number(e.target.value))}
-          className="mt-1 w-full"
+          className="mt-2 w-full accent-[var(--brand-primary)]"
         />
       </div>
-      <label className="flex items-center gap-2 text-sm text-slate-700">
+      <label className="flex items-center gap-2 text-sm text-[#4a3b2c]">
         <input
           type="checkbox"
           checked={anyPrivate}
           onChange={(e) => setAnyPrivate(e.target.checked)}
+          className="accent-[var(--brand-primary)]"
         />
         Also alert me on any private feedback with a note
       </label>
-      <button
-        onClick={save}
-        disabled={pending}
-        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-      >
+      <button onClick={save} disabled={pending} className="warm-btn">
         {pending ? "Saving…" : saved ? "Saved ✓" : "Save settings"}
       </button>
     </div>

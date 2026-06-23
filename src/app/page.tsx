@@ -11,72 +11,60 @@ export default async function HomePage() {
   });
 
   return (
-    <main className="min-h-screen">
-      <header className="border-b border-slate-200 bg-white">
+    <main className="warm-page">
+      <header className="warm-header sticky top-0 z-10">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <span className="text-lg font-bold text-indigo-600">ReviewLoop</span>
-          <Link
-            href="/admin"
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-          >
+          <span className="font-serif text-xl tracking-tight text-[var(--brand-primary)]">
+            ReviewLoop
+          </span>
+          <Link href="/admin" className="warm-btn">
             Admin console
           </Link>
         </div>
       </header>
 
       <section className="mx-auto max-w-5xl px-6 py-16">
-        <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
-          Multi-tenant SaaS
-        </p>
-        <h1 className="mt-2 max-w-2xl text-4xl font-bold leading-tight text-slate-900 sm:text-5xl">
+        <p className="warm-eyebrow text-[var(--brand-primary)]">Multi-tenant SaaS</p>
+        <h1 className="font-serif mt-3 max-w-2xl text-4xl leading-tight tracking-tight text-[var(--ink)] sm:text-5xl">
           More genuine Google reviews. Problems caught early.
         </h1>
-        <p className="mt-4 max-w-2xl text-lg text-slate-600">
+        <p className="warm-muted mt-5 max-w-2xl text-lg leading-relaxed">
           A QR standee at the counter sends customers to a branded page on their own phone. They
           share a public Google review in their own words, or send private feedback straight to the
           manager — who gets a real-time WhatsApp alert. Fully compliant with Google&apos;s review
-          policy and the FTC reviews rule: <strong>no gating, no fake text, no incentives.</strong>
+          policy and the FTC reviews rule:{" "}
+          <strong className="text-[var(--ink)]">no gating, no fake text, no incentives.</strong>
         </p>
 
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link
-            href="/admin"
-            className="rounded-lg bg-indigo-600 px-5 py-3 font-medium text-white hover:bg-indigo-700"
-          >
+          <Link href="/admin" className="warm-btn">
             Open admin console →
           </Link>
         </div>
 
         <div className="mt-16">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Live demo tenants
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <h2 className="warm-eyebrow">Live demo tenants</h2>
+          <p className="warm-muted mt-1.5 text-sm">
             Each business gets its own subdomain. Locally these open at{" "}
-            <code className="rounded bg-slate-100 px-1">sub.localhost:3000</code> or the canonical{" "}
-            <code className="rounded bg-slate-100 px-1">/s/sub</code> path.
+            <code className="rounded bg-[#efe7d9] px-1 text-[var(--ink)]">sub.localhost:3000</code>{" "}
+            or the canonical{" "}
+            <code className="rounded bg-[#efe7d9] px-1 text-[var(--ink)]">/s/sub</code> path.
           </p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {tenants.length === 0 && (
-              <p className="text-slate-500">No tenants yet — create one in the admin console.</p>
+              <p className="warm-muted">No tenants yet — create one in the admin console.</p>
             )}
             {tenants.map((t) => (
-              <div
-                key={t.id}
-                className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
-              >
-                <p className="font-semibold text-slate-900">{t.businessName}</p>
-                <p className="text-sm capitalize text-slate-500">{t.category}</p>
-                <div className="mt-3 flex flex-wrap gap-2 text-sm">
-                  <Link
-                    href={`/s/${t.subdomain}`}
-                    className="rounded-md bg-slate-900 px-3 py-1.5 font-medium text-white hover:bg-slate-700"
-                  >
+              <div key={t.id} className="warm-card p-5">
+                <p className="font-serif text-lg text-[var(--ink)]">{t.businessName}</p>
+                <p className="warm-muted text-sm capitalize">{t.category}</p>
+                <div className="mt-4 flex flex-wrap gap-2 text-sm">
+                  <Link href={`/s/${t.subdomain}`} className="warm-btn px-3 py-1.5 text-[13px]">
                     Customer page
                   </Link>
                   <Link
                     href={`/s/${t.subdomain}/manage`}
-                    className="rounded-md border border-slate-300 px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50"
+                    className="warm-btn-ghost px-3 py-1.5 text-[13px]"
                   >
                     Manager view
                   </Link>
@@ -87,7 +75,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <footer className="border-t border-slate-200 py-8 text-center text-sm text-slate-400">
+      <footer className="warm-muted border-t border-[#e7dcc8] py-8 text-center text-sm">
         ReviewLoop · Compliant feedback &amp; review collection · Not legal advice.
       </footer>
     </main>

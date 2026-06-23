@@ -18,26 +18,20 @@ export default function CreateTenantForm({
 
   if (!open) {
     return (
-      <button
-        onClick={() => setOpen(true)}
-        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-      >
+      <button onClick={() => setOpen(true)} className="warm-btn">
         + New tenant
       </button>
     );
   }
 
   return (
-    <form
-      action={action}
-      className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-    >
+    <form action={action} className="warm-card p-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-slate-900">Create a tenant</h3>
+        <h3 className="font-serif text-xl text-[var(--ink)]">Create a tenant</h3>
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="text-sm text-slate-400 hover:text-slate-600"
+          className="warm-muted text-sm hover:text-[var(--ink)]"
         >
           Cancel
         </button>
@@ -45,20 +39,14 @@ export default function CreateTenantForm({
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="text-sm font-medium text-slate-700">Business name</label>
-          <input
-            name="businessName"
-            required
-            className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm"
-          />
+          <label className="warm-label">Business name</label>
+          <input name="businessName" required className="warm-input mt-1.5" />
         </div>
         <div>
-          <label className="text-sm font-medium text-slate-700">
-            {mode === "subdomain" ? "Subdomain" : "Tenant slug"}
-          </label>
-          <div className="mt-1 flex items-center overflow-hidden rounded-lg border border-slate-300">
+          <label className="warm-label">{mode === "subdomain" ? "Subdomain" : "Tenant slug"}</label>
+          <div className="warm-input mt-1.5 flex items-center gap-0 p-0">
             {mode === "path" && (
-              <span className="whitespace-nowrap pl-2 text-xs text-slate-400">{host}/s/</span>
+              <span className="warm-muted whitespace-nowrap pl-3 text-xs">{host}/s/</span>
             )}
             <input
               name="subdomain"
@@ -66,27 +54,22 @@ export default function CreateTenantForm({
               value={subdomain}
               onChange={(e) => setSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
               placeholder="pizzapalace"
-              className="w-full p-2.5 text-sm focus:outline-none"
+              className="w-full bg-transparent p-2.5 text-sm focus:outline-none"
             />
             {mode === "subdomain" && (
-              <span className="whitespace-nowrap px-2 text-xs text-slate-400">.{rootDomain}</span>
+              <span className="warm-muted whitespace-nowrap px-3 text-xs">.{rootDomain}</span>
             )}
           </div>
           {subdomain && (
-            <p className="mt-1 truncate text-xs text-slate-400">
+            <p className="warm-muted mt-1 truncate text-xs">
               Customer page:{" "}
-              {mode === "subdomain"
-                ? `${subdomain}.${rootDomain}`
-                : `${host}/s/${subdomain}`}
+              {mode === "subdomain" ? `${subdomain}.${rootDomain}` : `${host}/s/${subdomain}`}
             </p>
           )}
         </div>
         <div>
-          <label className="text-sm font-medium text-slate-700">Category</label>
-          <select
-            name="category"
-            className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm"
-          >
+          <label className="warm-label">Category</label>
+          <select name="category" className="warm-select mt-1.5">
             <option value="restaurant">Restaurant</option>
             <option value="cafe">Café</option>
             <option value="salon">Salon</option>
@@ -94,48 +77,44 @@ export default function CreateTenantForm({
           </select>
         </div>
         <div>
-          <label className="text-sm font-medium text-slate-700">Manager WhatsApp</label>
-          <input
-            name="whatsappNumber"
-            placeholder="+91…"
-            className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm"
-          />
+          <label className="warm-label">Manager WhatsApp</label>
+          <input name="whatsappNumber" placeholder="+91…" className="warm-input mt-1.5" />
         </div>
         <div className="sm:col-span-2">
-          <label className="text-sm font-medium text-slate-700">Google review URL</label>
+          <label className="warm-label">Google review URL</label>
           <input
             name="googleReviewUrl"
             placeholder="https://search.google.com/local/writereview?placeid=…"
-            className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm"
+            className="warm-input mt-1.5"
           />
         </div>
         <div>
-          <label className="text-sm font-medium text-slate-700">Primary colour</label>
+          <label className="warm-label">Primary colour</label>
           <input
             name="colorPrimary"
             type="color"
-            defaultValue="#4f46e5"
-            className="mt-1 h-10 w-full rounded-lg border border-slate-300"
+            defaultValue="#dd7a2e"
+            className="mt-1.5 h-10 w-full rounded-lg border border-[#e6dac6]"
           />
         </div>
         <div>
-          <label className="text-sm font-medium text-slate-700">Secondary colour</label>
+          <label className="warm-label">Secondary colour</label>
           <input
             name="colorSecondary"
             type="color"
-            defaultValue="#0ea5e9"
-            className="mt-1 h-10 w-full rounded-lg border border-slate-300"
+            defaultValue="#e8a33d"
+            className="mt-1.5 h-10 w-full rounded-lg border border-[#e6dac6]"
           />
         </div>
       </div>
 
-      {state?.error && <p className="mt-3 text-sm text-red-600">{state.error}</p>}
+      {state?.error && (
+        <p className="mt-3 text-sm font-semibold" style={{ color: "#c0392b" }}>
+          {state.error}
+        </p>
+      )}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="mt-5 rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-      >
+      <button type="submit" disabled={pending} className="warm-btn mt-5">
         {pending ? "Creating…" : "Create & open"}
       </button>
     </form>

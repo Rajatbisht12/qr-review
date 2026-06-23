@@ -12,10 +12,10 @@ type Analytics = {
 
 function Stat({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
-      {sub && <p className="text-xs text-slate-400">{sub}</p>}
+    <div className="warm-stat p-4">
+      <p className="warm-eyebrow">{label}</p>
+      <p className="font-serif mt-1 text-3xl text-[var(--ink)]">{value}</p>
+      {sub && <p className="warm-muted text-xs">{sub}</p>}
     </div>
   );
 }
@@ -38,42 +38,45 @@ export default function FunnelStats({ a }: { a: Analytics }) {
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-sm font-semibold text-slate-700">
+        <div className="warm-card p-5">
+          <p className="text-sm font-bold text-[var(--ink)]">
             Rating distribution{" "}
-            <span className="font-normal text-slate-400">
+            <span className="warm-muted font-normal">
               · avg {a.avgRating ? a.avgRating.toFixed(1) : "—"}
             </span>
           </p>
-          <div className="mt-3 space-y-1.5">
+          <div className="mt-3 space-y-2">
             {[5, 4, 3, 2, 1].map((r) => (
               <div key={r} className="flex items-center gap-2 text-sm">
-                <span className="w-8 text-slate-500">{r}★</span>
-                <div className="h-3 flex-1 overflow-hidden rounded-full bg-slate-100">
+                <span className="w-8 text-[#6b5b49]">{r}★</span>
+                <div className="h-3 flex-1 overflow-hidden rounded-full bg-[#efe7d9]">
                   <div
-                    className="h-full rounded-full bg-indigo-500"
-                    style={{ width: `${(a.ratingDist[r] / maxRating) * 100}%` }}
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${(a.ratingDist[r] / maxRating) * 100}%`,
+                      background: "var(--brand-primary)",
+                    }}
                   />
                 </div>
-                <span className="w-6 text-right text-slate-400">{a.ratingDist[r]}</span>
+                <span className="warm-muted w-6 text-right">{a.ratingDist[r]}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-sm font-semibold text-slate-700">Google CTA by rating band</p>
-          <p className="mt-1 text-xs text-slate-400">
+        <div className="warm-card p-5">
+          <p className="text-sm font-bold text-[var(--ink)]">Google CTA by rating band</p>
+          <p className="warm-muted mt-1 text-xs">
             Non-gating check: unhappy customers reach Google just like happy ones.
           </p>
           <div className="mt-3 space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-slate-500">Low ratings (1–2★)</span>
-              <span className="font-semibold text-slate-900">{lowBand} clicks</span>
+              <span className="text-[#6b5b49]">Low ratings (1–2★)</span>
+              <span className="font-bold text-[var(--ink)]">{lowBand} clicks</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">High ratings (4–5★)</span>
-              <span className="font-semibold text-slate-900">{highBand} clicks</span>
+              <span className="text-[#6b5b49]">High ratings (4–5★)</span>
+              <span className="font-bold text-[var(--ink)]">{highBand} clicks</span>
             </div>
           </div>
         </div>

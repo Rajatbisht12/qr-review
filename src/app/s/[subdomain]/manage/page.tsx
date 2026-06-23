@@ -38,18 +38,17 @@ export default async function ManagePage({
   const contact = tenant.contacts[0];
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+    <main className="warm-page">
+      <header className="warm-header sticky top-0 z-10">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-5 py-4">
           <div>
-            <p className="text-sm text-slate-400">Manager dashboard</p>
-            <h1 className="text-lg font-bold text-slate-900">{tenant.businessName}</h1>
+            <p className="warm-eyebrow">Manager dashboard</p>
+            <h1 className="font-serif text-xl tracking-tight text-[var(--ink)]">
+              {tenant.businessName}
+            </h1>
           </div>
           <div className="flex items-center gap-2">
-            <Link
-              href={`/s/${subdomain}`}
-              className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-            >
+            <Link href={`/s/${subdomain}`} className="warm-btn-ghost">
               View customer page
             </Link>
             <LogoutButton redirectTo={`/s/${subdomain}/manage/login`} />
@@ -59,38 +58,27 @@ export default async function ManagePage({
 
       <div className="mx-auto max-w-4xl space-y-8 px-5 py-8">
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Review funnel
-          </h2>
+          <h2 className="warm-eyebrow mb-3">Review funnel</h2>
           <FunnelStats a={analytics} />
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Private feedback inbox ({feedback.length})
-          </h2>
+          <h2 className="warm-eyebrow mb-3">Private feedback inbox ({feedback.length})</h2>
           <div className="space-y-3">
             {feedback.length === 0 && (
-              <p className="rounded-xl border border-dashed border-slate-300 p-6 text-center text-slate-400">
+              <p className="warm-muted rounded-2xl border border-dashed border-[#d8c9af] p-6 text-center">
                 No feedback yet.
               </p>
             )}
             {feedback.map((f) => (
-              <div
-                key={f.id}
-                className={`rounded-xl border bg-white p-4 ${
-                  f.resolvedAt ? "border-slate-200 opacity-70" : "border-slate-300"
-                }`}
-              >
+              <div key={f.id} className={`warm-card p-4 ${f.resolvedAt ? "opacity-65" : ""}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <span className="text-lg" style={{ letterSpacing: 1 }}>
+                    <span className="text-lg" style={{ letterSpacing: 1, color: "#e8a33d" }}>
                       {"★".repeat(f.rating)}
-                      <span className="text-slate-300">{"★".repeat(5 - f.rating)}</span>
+                      <span style={{ color: "#e0d4bf" }}>{"★".repeat(5 - f.rating)}</span>
                     </span>
-                    <span className="ml-2 text-xs text-slate-400">
-                      {f.createdAt.toLocaleString()}
-                    </span>
+                    <span className="warm-muted ml-2 text-xs">{f.createdAt.toLocaleString()}</span>
                   </div>
                   <ResolveButton
                     feedbackId={f.id}
@@ -99,11 +87,12 @@ export default async function ManagePage({
                   />
                 </div>
                 {f.feedbackText && (
-                  <p className="mt-2 text-sm text-slate-700">{f.feedbackText}</p>
+                  <p className="mt-2 text-sm text-[#4a3b2c]">{f.feedbackText}</p>
                 )}
                 {(f.contactName || f.contactPhone || f.contactEmail) && (
-                  <p className="mt-2 text-xs text-slate-400">
-                    Contact: {[f.contactName, f.contactPhone, f.contactEmail].filter(Boolean).join(" · ")}
+                  <p className="warm-muted mt-2 text-xs">
+                    Contact:{" "}
+                    {[f.contactName, f.contactPhone, f.contactEmail].filter(Boolean).join(" · ")}
                   </p>
                 )}
               </div>
@@ -113,10 +102,8 @@ export default async function ManagePage({
 
         {contact && (
           <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Alert settings
-            </h2>
-            <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="warm-eyebrow mb-3">Alert settings</h2>
+            <div className="warm-card p-5">
               <WhatsAppSettings
                 contactId={contact.id}
                 subdomain={subdomain}

@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { getTenantBySubdomain } from "@/lib/tenant";
-import { promptsForCategory } from "@/lib/prompts";
 import CustomerFlow from "./CustomerFlow";
 
 export const dynamic = "force-dynamic";
@@ -18,16 +17,18 @@ export default async function TenantLandingPage({
   }
 
   const theme = tenant.theme;
-  const prompts = promptsForCategory(tenant.category);
+
+  const accent = theme?.colorPrimary ?? "#dd7a2e";
 
   return (
     <main
-      className="min-h-screen"
+      className="flex min-h-screen items-center justify-center"
       style={
         {
-          "--brand-primary": theme?.colorPrimary ?? "#4f46e5",
-          "--brand-secondary": theme?.colorSecondary ?? "#0ea5e9",
-          background: `linear-gradient(160deg, color-mix(in srgb, var(--brand-primary) 8%, #ffffff), #ffffff 60%)`,
+          "--brand-primary": accent,
+          "--brand-secondary": theme?.colorSecondary ?? "#e8a33d",
+          // Warm "paper" backdrop that frames the card on larger screens (from the hi-fi design).
+          background: "radial-gradient(125% 120% at 50% 0%, #efeae1 0%, #e2dbd0 100%)",
         } as React.CSSProperties
       }
     >
@@ -35,11 +36,11 @@ export default async function TenantLandingPage({
         subdomain={tenant.subdomain}
         businessName={tenant.businessName}
         category={tenant.category}
+        accent={accent}
         googleReviewUrl={tenant.googleReviewUrl}
         logoUrl={theme?.logoUrl ?? null}
-        welcomeMessage={theme?.welcomeMessage ?? "How was your visit?"}
+        welcomeMessage={theme?.welcomeMessage ?? "How was your experience?"}
         thankYouMessage={theme?.thankYouMessage ?? "Thank you for your feedback!"}
-        prompts={prompts}
         sampleReviewsEnabled={tenant.sampleReviewsEnabled}
         sampleReviewThreshold={tenant.sampleReviewThreshold}
         sampleReviews={tenant.reviewTemplates.map((t) => t.text)}

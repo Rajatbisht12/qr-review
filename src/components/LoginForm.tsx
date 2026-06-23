@@ -19,46 +19,43 @@ export default function LoginForm({
   const [state, action, pending] = useActionState(loginAction, {});
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-5">
-      <form
-        action={action}
-        className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-7 shadow-sm"
-      >
-        <h1 className="text-xl font-bold text-slate-900">{title}</h1>
-        <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+    <main className="warm-page flex items-center justify-center px-5">
+      <form action={action} className="warm-card animate-in w-full max-w-sm p-7">
+        <h1 className="font-serif text-2xl tracking-tight text-[var(--ink)]">{title}</h1>
+        <p className="warm-muted mt-1.5 text-sm">{subtitle}</p>
 
         <input type="hidden" name="next" value={next} />
         {expectAdmin && <input type="hidden" name="expectAdmin" value="1" />}
 
-        <label className="mt-5 block text-sm font-medium text-slate-700">Email</label>
+        <label className="warm-label mt-5">Email</label>
         <input
           name="email"
           type="email"
           required
           autoComplete="email"
-          className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm"
+          className="warm-input mt-1.5"
         />
 
-        <label className="mt-4 block text-sm font-medium text-slate-700">Password</label>
+        <label className="warm-label mt-4">Password</label>
         <input
           name="password"
           type="password"
           required
           autoComplete="current-password"
-          className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm"
+          className="warm-input mt-1.5"
         />
 
-        {state?.error && <p className="mt-3 text-sm text-red-600">{state.error}</p>}
+        {state?.error && (
+          <p className="mt-3 text-sm font-semibold" style={{ color: "#c0392b" }}>
+            {state.error}
+          </p>
+        )}
 
-        <button
-          type="submit"
-          disabled={pending}
-          className="mt-5 w-full rounded-lg bg-indigo-600 py-2.5 font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
+        <button type="submit" disabled={pending} className="warm-btn mt-5 w-full">
           {pending ? "Signing in…" : "Sign in"}
         </button>
 
-        {hint && <p className="mt-4 text-center text-xs text-slate-400">{hint}</p>}
+        {hint && <p className="warm-muted mt-4 text-center text-xs">{hint}</p>}
       </form>
     </main>
   );

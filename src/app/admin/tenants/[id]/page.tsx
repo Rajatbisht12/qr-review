@@ -39,19 +39,18 @@ export default async function TenantAdminPage({
   const contact = tenant.contacts[0];
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+    <main className="warm-page">
+      <header className="warm-header sticky top-0 z-10">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4">
           <div>
-            <Link href="/admin" className="text-sm text-indigo-600 hover:underline">
+            <Link href="/admin" className="warm-link text-sm">
               ← All tenants
             </Link>
-            <h1 className="text-lg font-bold text-slate-900">{tenant.businessName}</h1>
+            <h1 className="font-serif text-xl tracking-tight text-[var(--ink)]">
+              {tenant.businessName}
+            </h1>
           </div>
-          <Link
-            href={`/s/${tenant.subdomain}`}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-          >
+          <Link href={`/s/${tenant.subdomain}`} className="warm-btn-ghost">
             View customer page
           </Link>
         </div>
@@ -60,9 +59,7 @@ export default async function TenantAdminPage({
       <div className="mx-auto max-w-5xl space-y-8 px-5 py-8">
         <section className="grid gap-6 lg:grid-cols-[1fr_280px]">
           <div>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Branding &amp; configuration
-            </h2>
+            <h2 className="warm-eyebrow mb-3">Branding &amp; configuration</h2>
             <EditTenantForm
               tenant={{
                 id: tenant.id,
@@ -70,8 +67,8 @@ export default async function TenantAdminPage({
                 category: tenant.category,
                 googleReviewUrl: tenant.googleReviewUrl,
                 status: tenant.status,
-                colorPrimary: tenant.theme?.colorPrimary ?? "#4f46e5",
-                colorSecondary: tenant.theme?.colorSecondary ?? "#0ea5e9",
+                colorPrimary: tenant.theme?.colorPrimary ?? "#dd7a2e",
+                colorSecondary: tenant.theme?.colorSecondary ?? "#e8a33d",
                 logoUrl: tenant.theme?.logoUrl ?? "",
                 welcomeMessage: tenant.theme?.welcomeMessage ?? "How was your visit?",
                 whatsappNumber: contact?.whatsappNumber ?? "",
@@ -91,17 +88,15 @@ export default async function TenantAdminPage({
           </div>
 
           <div>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Standee QR
-            </h2>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 text-center">
+            <h2 className="warm-eyebrow mb-3">Standee QR</h2>
+            <div className="warm-card p-5 text-center">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={qr} alt="Tenant QR code" className="mx-auto h-44 w-44" />
-              <p className="mt-3 break-all text-xs text-slate-400">{publicUrl}</p>
+              <img src={qr} alt="Tenant QR code" className="mx-auto h-44 w-44 rounded-xl" />
+              <p className="warm-muted mt-3 break-all text-xs">{publicUrl}</p>
               <a
                 href={qr}
                 download={`${tenant.subdomain}-qr.png`}
-                className="mt-3 inline-block rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+                className="warm-btn mt-3 inline-flex"
               >
                 Download QR
               </a>
@@ -110,9 +105,7 @@ export default async function TenantAdminPage({
         </section>
 
         <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Analytics
-          </h2>
+          <h2 className="warm-eyebrow mb-3">Analytics</h2>
           <FunnelStats a={analytics} />
         </section>
       </div>

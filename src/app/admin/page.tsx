@@ -38,12 +38,14 @@ export default async function AdminPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+    <main className="warm-page">
+      <header className="warm-header sticky top-0 z-10">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-4">
           <div>
-            <p className="text-sm text-slate-400">Admin console</p>
-            <h1 className="text-lg font-bold text-indigo-600">ReviewLoop</h1>
+            <p className="warm-eyebrow">Admin console</p>
+            <h1 className="font-serif text-xl tracking-tight text-[var(--brand-primary)]">
+              ReviewLoop
+            </h1>
           </div>
           <LogoutButton redirectTo="/admin/login" />
         </div>
@@ -57,64 +59,57 @@ export default async function AdminPage() {
             { label: `Scans (${period})`, value: totals.scans },
             { label: `Alerts (${period})`, value: totals.alerts },
           ].map((s) => (
-            <div key={s.label} className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                {s.label}
-              </p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">{s.value}</p>
+            <div key={s.label} className="warm-stat p-4">
+              <p className="warm-eyebrow">{s.label}</p>
+              <p className="font-serif mt-1 text-3xl text-[var(--ink)]">{s.value}</p>
             </div>
           ))}
         </section>
 
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-              Tenants
-            </h2>
+            <h2 className="warm-eyebrow">Tenants</h2>
           </div>
           <CreateTenantForm mode={routingMode} host={host} rootDomain={rootDomain} />
 
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="warm-card overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
+              <thead className="warm-eyebrow border-b border-[#ebdfcb] bg-[#faf4e8] text-left">
                 <tr>
-                  <th className="px-4 py-3">Business</th>
-                  <th className="px-4 py-3">Subdomain</th>
-                  <th className="px-4 py-3">Plan</th>
-                  <th className="px-4 py-3">Usage</th>
-                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 font-bold">Business</th>
+                  <th className="px-4 py-3 font-bold">Subdomain</th>
+                  <th className="px-4 py-3 font-bold">Plan</th>
+                  <th className="px-4 py-3 font-bold">Usage</th>
+                  <th className="px-4 py-3 font-bold">Status</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[#f0e7d6]">
                 {tenants.map((t) => {
                   const usage = t.usage[0];
                   const quota = usage?.quota ?? t.plan?.monthlyQuota ?? 0;
                   return (
                     <tr key={t.id}>
-                      <td className="px-4 py-3 font-medium text-slate-900">{t.businessName}</td>
-                      <td className="px-4 py-3 text-slate-500">{t.subdomain}</td>
-                      <td className="px-4 py-3 text-slate-500">{t.plan?.name ?? "—"}</td>
-                      <td className="px-4 py-3 text-slate-500">
+                      <td className="px-4 py-3 font-semibold text-[var(--ink)]">
+                        {t.businessName}
+                      </td>
+                      <td className="warm-muted px-4 py-3">{t.subdomain}</td>
+                      <td className="warm-muted px-4 py-3">{t.plan?.name ?? "—"}</td>
+                      <td className="warm-muted px-4 py-3">
                         {(usage?.scans ?? 0) + (usage?.alerts ?? 0)}
                         {quota ? ` / ${quota}` : ""}
                       </td>
                       <td className="px-4 py-3">
                         <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                            t.status === "active"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-amber-100 text-amber-700"
+                          className={`warm-pill ${
+                            t.status === "active" ? "warm-pill-on" : "warm-pill-off"
                           }`}
                         >
                           {t.status}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Link
-                          href={`/admin/tenants/${t.subdomain}`}
-                          className="font-medium text-indigo-600 hover:underline"
-                        >
+                        <Link href={`/admin/tenants/${t.subdomain}`} className="warm-link">
                           Manage →
                         </Link>
                       </td>
@@ -123,7 +118,7 @@ export default async function AdminPage() {
                 })}
                 {tenants.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                    <td colSpan={6} className="warm-muted px-4 py-8 text-center">
                       No tenants yet. Create your first one above.
                     </td>
                   </tr>

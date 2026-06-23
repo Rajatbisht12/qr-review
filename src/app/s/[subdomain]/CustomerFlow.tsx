@@ -1,28 +1,121 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { CSSProperties, useEffect, useRef, useState } from "react";
 import { recordEvent, submitFeedback } from "./actions";
 
 type Props = {
   subdomain: string;
   businessName: string;
   category: string;
+  accent: string;
   googleReviewUrl: string;
   logoUrl: string | null;
   welcomeMessage: string;
   thankYouMessage: string;
-  prompts: string[];
-  // Optional "sample reviews" feature (opt-in per tenant). See compliance note in AssistStep.
+  // Optional "sample reviews" feature (opt-in per tenant). When enabled, the review
+  // shown on the happy path is the tenant's own approved copy rather than a composed one.
   sampleReviewsEnabled: boolean;
   sampleReviewThreshold: number;
   sampleReviews: string[];
 };
 
-type Step = "rating" | "choose" | "assist" | "private" | "thanks";
+type Step = "rating" | "survey" | "review" | "complaint" | "sent";
+
+const EMOJIS = [
+  { glyph: "😠", label: "Awful", score: 1 },
+  { glyph: "🙁", label: "Poor", score: 2 },
+  { glyph: "😐", label: "Okay", score: 3 },
+  { glyph: "😊", label: "Good", score: 4 },
+  { glyph: "😍", label: "Loved it", score: 5 },
+];
+
+/** rgba() string from a #rrggbb hex + alpha — used for accent-tinted shadows/fills. */
+function hexA(hex: string, a: number): string {
+  const h = hex.replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const n = parseInt(full, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+}
+
+/**
+ * Copy text to the clipboard, with a legacy fallback for browsers/contexts where
+ * the async Clipboard API is unavailable or blocked (older mobile Safari, non-HTTPS,
+ * in-app webviews). Returns true only if the copy actually succeeded.
+ */
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    if (typeof navigator !== "undefined" && navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* fall through to the legacy execCommand path */
+  }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.top = "0";
+    ta.style.left = "0";
+    ta.style.opacity = "0";
+    ta.setAttribute("readonly", "");
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Survey chip groups for the happy path, lightly tailored per business category. */
+function surveyGroupsForCategory(category: string): { title: string; chips: string[] }[] {
+  const map: Record<string, { title: string; chips: string[] }[]> = {
+    restaurant: [
+      { title: "What you loved", chips: ["The food", "The service", "The ambience", "Great value"] },
+      { title: "On the plate", chips: ["Tasty mains", "Great starters", "Lovely dessert", "Good drinks"] },
+      { title: "The vibe", chips: ["Cozy", "Lively", "Family-friendly", "Romantic"] },
+    ],
+    cafe: [
+      { title: "What you loved", chips: ["The coffee", "The food", "The service", "The space"] },
+      { title: "The vibe", chips: ["Cozy", "Quiet", "Good for work", "Lively"] },
+    ],
+    salon: [
+      { title: "What you loved", chips: ["The result", "The staff", "The space", "Great value"] },
+      { title: "The experience", chips: ["Relaxing", "Professional", "Friendly", "On time"] },
+    ],
+    retail: [
+      { title: "What you loved", chips: ["The products", "The help", "Great prices", "The selection"] },
+      { title: "The experience", chips: ["Friendly", "Quick", "No pressure", "Knowledgeable"] },
+    ],
+  };
+  return (
+    map[category] ?? [
+      { title: "What you loved", chips: ["The service", "The quality", "The atmosphere", "Great value"] },
+      { title: "The experience", chips: ["Friendly", "Quick", "Professional", "Welcoming"] },
+    ]
+  );
+}
+
+const ISSUE_CHIPS = [
+  "Slow service",
+  "Quality",
+  "Order/booking wrong",
+  "Cleanliness",
+  "Pricing",
+  "Staff attitude",
+];
 
 export default function CustomerFlow(props: Props) {
+  const { accent } = props;
   const [step, setStep] = useState<Step>("rating");
-  const [rating, setRating] = useState<number>(0);
+  const [selected, setSelected] = useState<number | null>(null);
+  const [love, setLove] = useState<Record<string, boolean>>({});
+  const [issues, setIssues] = useState<Record<string, boolean>>({});
+  const [complaintText, setComplaintText] = useState("");
   const scanFired = useRef(false);
 
   // Track the scan exactly once when the page loads (PRD 6.6 funnel).
@@ -32,489 +125,811 @@ export default function CustomerFlow(props: Props) {
     void recordEvent(props.subdomain, "scan");
   }, [props.subdomain]);
 
-  function chooseRating(value: number) {
-    setRating(value);
-    void recordEvent(props.subdomain, "rating", value);
-    setStep("choose");
+  function toggle(map: "love" | "issues", key: string) {
+    const setter = map === "love" ? setLove : setIssues;
+    setter((m) => ({ ...m, [key]: !m[key] }));
+  }
+
+  function restart() {
+    setSelected(null);
+    setLove({});
+    setIssues({});
+    setComplaintText("");
+    setStep("rating");
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col px-5 py-8">
-      <BrandHeader logoUrl={props.logoUrl} businessName={props.businessName} />
+    <div
+      className="flex w-full flex-col text-[var(--ink)]"
+      style={{
+        minHeight: "100vh",
+        maxWidth: 440,
+        background: "linear-gradient(180deg, var(--paper-top) 0%, var(--paper-bottom) 100%)",
+        overflow: "hidden",
+      }}
+    >
+      {step === "rating" && (
+        <RatingScreen
+          {...props}
+          selected={selected}
+          onSelect={(score) => {
+            setSelected(score);
+            void recordEvent(props.subdomain, "rating", score);
+          }}
+          onContinue={() => {
+            if (selected == null) return;
+            setStep(selected >= 3 ? "survey" : "complaint");
+          }}
+        />
+      )}
 
-      <div className="mt-6 flex-1">
-        {step === "rating" && (
-          <RatingStep welcome={props.welcomeMessage} onPick={chooseRating} />
-        )}
-        {step === "choose" && (
-          <ChooseStep
-            rating={rating}
-            businessName={props.businessName}
-            onGoogle={() => setStep("assist")}
-            onPrivate={() => setStep("private")}
+      {step === "survey" && (
+        <SurveyScreen
+          {...props}
+          love={love}
+          onToggle={(k) => toggle("love", k)}
+          onBack={restart}
+          onGenerate={() => setStep("review")}
+        />
+      )}
+
+      {step === "review" && (
+        <ReviewScreen
+          {...props}
+          stars={selected ?? 5}
+          love={love}
+          onBack={() => setStep("survey")}
+          onRestart={restart}
+        />
+      )}
+
+      {step === "complaint" && (
+        <ComplaintScreen
+          {...props}
+          rating={selected ?? 1}
+          issues={issues}
+          text={complaintText}
+          onText={setComplaintText}
+          onToggle={(k) => toggle("issues", k)}
+          onBack={restart}
+          onSent={() => setStep("sent")}
+        />
+      )}
+
+      {step === "sent" && <SentScreen {...props} onRestart={restart} />}
+    </div>
+  );
+}
+
+/* ----------------------------- shared styles ----------------------------- */
+
+function primaryBtn(active: boolean, bg: string): CSSProperties {
+  return {
+    width: "100%",
+    height: 56,
+    border: "none",
+    borderRadius: 16,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    fontFamily: "var(--font-sans)",
+    fontSize: 16,
+    fontWeight: 800,
+    letterSpacing: "0.2px",
+    cursor: active ? "pointer" : "default",
+    color: active ? "#fff" : "#b6a892",
+    background: active ? bg : "#efe7d9",
+    boxShadow: active ? `0 12px 26px ${hexA(bg, 0.3)}` : "none",
+    transition: "all .25s",
+    WebkitTapHighlightColor: "transparent",
+  };
+}
+
+function copyBtn(copied: boolean, accent: string): CSSProperties {
+  return {
+    width: "100%",
+    height: 52,
+    borderRadius: 16,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+    fontFamily: "var(--font-sans)",
+    fontSize: 15,
+    fontWeight: 800,
+    letterSpacing: "0.2px",
+    cursor: "pointer",
+    outline: "none",
+    transition: "all .2s",
+    WebkitTapHighlightColor: "transparent",
+    border: `1.5px solid ${copied ? accent : hexA(accent, 0.45)}`,
+    background: copied ? hexA(accent, 0.12) : "#fffdf8",
+    color: accent,
+  };
+}
+
+const backStyle: CSSProperties = {
+  width: 38,
+  height: 38,
+  borderRadius: "50%",
+  border: "1px solid #ebdfcb",
+  background: "#fffdf8",
+  color: "#6b5b49",
+  fontSize: 22,
+  fontWeight: 700,
+  lineHeight: 1,
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  paddingBottom: 3,
+  flex: "none",
+  outline: "none",
+};
+
+function chipStyle(on: boolean, accent: string): CSSProperties {
+  return {
+    padding: "10px 16px",
+    borderRadius: 13,
+    fontFamily: "var(--font-sans)",
+    fontSize: 14,
+    fontWeight: 700,
+    cursor: "pointer",
+    outline: "none",
+    border: on ? `1.5px solid ${accent}` : "1.5px solid #e6dac6",
+    background: on ? hexA(accent, 0.12) : "#fffdf8",
+    color: on ? accent : "#5b4d3d",
+    transition: "all .18s",
+    WebkitTapHighlightColor: "transparent",
+  };
+}
+
+function Logo({
+  logoUrl,
+  businessName,
+  size,
+  accent,
+}: {
+  logoUrl: string | null;
+  businessName: string;
+  size: number;
+  accent: string;
+}) {
+  if (logoUrl) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return (
+      <img
+        src={logoUrl}
+        alt={businessName}
+        style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", display: "block" }}
+      />
+    );
+  }
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: accent,
+        color: "#fff",
+        fontFamily: "var(--font-serif)",
+        fontSize: size * 0.4,
+      }}
+    >
+      {businessName.charAt(0)}
+    </div>
+  );
+}
+
+/* ----------------------------- screen 1 · rating ----------------------------- */
+
+function RatingScreen({
+  businessName,
+  category,
+  accent,
+  logoUrl,
+  welcomeMessage,
+  selected,
+  onSelect,
+  onContinue,
+}: Props & { selected: number | null; onSelect: (n: number) => void; onContinue: () => void }) {
+  const has = selected != null;
+  return (
+    <div className="scr-fade" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ height: 44, flex: "none" }} />
+
+      {/* hero banner */}
+      <div style={{ padding: "0 16px", flex: "none" }}>
+        <div
+          style={{
+            position: "relative",
+            height: 178,
+            borderRadius: 26,
+            overflow: "hidden",
+            boxShadow: "0 16px 34px rgba(74,50,18,0.16)",
+            background: logoUrl
+              ? undefined
+              : `linear-gradient(135deg, ${accent} 0%, ${hexA(accent, 0.72)} 100%)`,
+          }}
+        >
+          {logoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoUrl}
+              alt=""
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", filter: "brightness(0.92)" }}
+            />
+          )}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "linear-gradient(180deg, rgba(40,25,8,0) 40%, rgba(40,25,8,0.34) 100%)",
+            }}
           />
-        )}
-        {step === "assist" && (
-          <AssistStep
-            {...props}
-            rating={rating}
-            onBack={() => setStep("choose")}
-            onPrivate={() => setStep("private")}
-          />
-        )}
-        {step === "private" && (
-          <PrivateStep
-            {...props}
-            rating={rating}
-            onDone={() => setStep("thanks")}
-            onGoogle={() => setStep("assist")}
-          />
-        )}
-        {step === "thanks" && <ThanksStep message={props.thankYouMessage} />}
+        </div>
       </div>
 
-      <ComplianceFooter />
-    </div>
-  );
-}
-
-function BrandHeader({ logoUrl, businessName }: { logoUrl: string | null; businessName: string }) {
-  return (
-    <div className="flex flex-col items-center text-center">
-      {logoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={logoUrl} alt={businessName} className="h-16 w-16 rounded-2xl object-cover" />
-      ) : (
+      {/* logo medallion */}
+      <div style={{ display: "flex", justifyContent: "center", marginTop: -44, position: "relative", zIndex: 2 }}>
         <div
-          className="flex h-16 w-16 items-center justify-center rounded-2xl text-2xl font-bold text-white"
-          style={{ background: "var(--brand-primary)" }}
+          style={{
+            width: 92,
+            height: 92,
+            borderRadius: "50%",
+            background: "#fffdf8",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "0 8px 22px rgba(74,50,18,0.20)",
+          }}
         >
-          {businessName.charAt(0)}
+          <Logo logoUrl={logoUrl} businessName={businessName} size={80} accent={accent} />
         </div>
-      )}
-      <h1 className="mt-3 text-xl font-bold text-slate-900">{businessName}</h1>
+      </div>
+
+      <div style={{ textAlign: "center", marginTop: 13, padding: "0 24px", flex: "none" }}>
+        <div className="font-serif" style={{ fontSize: 28, lineHeight: 1.05, letterSpacing: "0.4px" }}>
+          {businessName}
+        </div>
+        <div style={{ marginTop: 7, color: "var(--ink-muted)", fontSize: 13, fontWeight: 500, textTransform: "capitalize" }}>
+          {category}
+        </div>
+      </div>
+
+      <div style={{ textAlign: "center", marginTop: 24, padding: "0 30px", flex: "none" }}>
+        <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.25, letterSpacing: "-0.2px" }}>
+          {welcomeMessage}
+        </div>
+        <div style={{ fontSize: 13.5, color: "var(--ink-muted)", marginTop: 8, lineHeight: 1.45, fontWeight: 500 }}>
+          Tell us how we did — it only takes a second.
+        </div>
+      </div>
+
+      {/* emoji rating */}
+      <div style={{ marginTop: 30, padding: "0 22px", flex: "none" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          {EMOJIS.map((e) => {
+            const on = selected === e.score;
+            return (
+              <div key={e.score} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: "none" }}>
+                <button
+                  aria-label={e.label}
+                  onClick={() => onSelect(e.score)}
+                  style={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 29,
+                    padding: 0,
+                    cursor: "pointer",
+                    flex: "none",
+                    outline: "none",
+                    border: on ? `2px solid ${accent}` : "2px solid transparent",
+                    background: on ? "#ffffff" : "#f4ede1",
+                    transform: on ? "translateY(-6px) scale(1.12)" : "none",
+                    boxShadow: on ? `0 12px 24px ${hexA(accent, 0.32)}` : "0 1px 2px rgba(0,0,0,0.04)",
+                    transition: "transform .24s cubic-bezier(.2,.85,.25,1), box-shadow .24s, background .24s, border-color .24s",
+                    WebkitTapHighlightColor: "transparent",
+                  }}
+                >
+                  {e.glyph}
+                </button>
+                <div
+                  style={{
+                    fontSize: 11,
+                    marginTop: 10,
+                    fontWeight: on ? 800 : 600,
+                    color: on ? "#3a2d20" : "#a99b89",
+                    letterSpacing: "0.2px",
+                    transition: "color .2s",
+                  }}
+                >
+                  {e.label}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, minHeight: 24 }} />
+
+      <div style={{ padding: "0 22px 30px", flex: "none" }}>
+        <button style={primaryBtn(has, accent)} onClick={onContinue} disabled={!has}>
+          {has ? "Continue" : "Tap a face above"}
+        </button>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            marginTop: 16,
+            color: "#b0a28e",
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.2px",
+          }}
+        >
+          <svg width="10" height="12" viewBox="0 0 12 14">
+            <rect x="1" y="6" width="10" height="7" rx="1.6" fill="#b0a28e" />
+            <path d="M3.2 6V4.2a2.8 2.8 0 0 1 5.6 0V6" fill="none" stroke="#b0a28e" strokeWidth="1.4" />
+          </svg>
+          Private &amp; secure · Powered by ReviewLoop
+        </div>
+      </div>
     </div>
   );
 }
 
-function RatingStep({ welcome, onPick }: { welcome: string; onPick: (n: number) => void }) {
-  const [hover, setHover] = useState(0);
+/* ----------------------------- screen 2 · survey (happy) ----------------------------- */
+
+function SurveyScreen({
+  category,
+  accent,
+  love,
+  onToggle,
+  onBack,
+  onGenerate,
+}: Props & {
+  love: Record<string, boolean>;
+  onToggle: (k: string) => void;
+  onBack: () => void;
+  onGenerate: () => void;
+}) {
+  const groups = surveyGroupsForCategory(category);
+  const count = Object.values(love).filter(Boolean).length;
   return (
-    <div className="animate-in text-center">
-      <h2 className="text-2xl font-semibold text-slate-900">{welcome}</h2>
-      <p className="mt-2 text-slate-500">Tap a star to start.</p>
-      <div className="mt-8 flex justify-center gap-2">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <button
-            key={n}
-            aria-label={`${n} star${n > 1 ? "s" : ""}`}
-            onMouseEnter={() => setHover(n)}
-            onMouseLeave={() => setHover(0)}
-            onClick={() => onPick(n)}
-            className="text-5xl transition-transform hover:scale-110 focus:outline-none focus-visible:scale-110"
-            style={{ color: n <= hover ? "var(--brand-primary)" : "#cbd5e1" }}
-          >
-            ★
-          </button>
+    <div className="scr-fade" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ height: 40, flex: "none" }} />
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 18px 0", flex: "none" }}>
+        <button style={backStyle} onClick={onBack} aria-label="Back">
+          ‹
+        </button>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-muted)", letterSpacing: "0.3px" }}>
+          STEP 2 OF 3
+        </div>
+      </div>
+
+      <div style={{ padding: "18px 24px 0", flex: "none" }}>
+        <div style={{ fontSize: 23, fontWeight: 800, lineHeight: 1.2, letterSpacing: "-0.3px" }}>
+          Wonderful! What stood out?
+        </div>
+        <div style={{ fontSize: 13.5, color: "var(--ink-muted)", marginTop: 7, fontWeight: 500 }}>
+          Tap a few — they&apos;ll shape the review you post.
+        </div>
+      </div>
+
+      <div style={{ padding: "22px 22px 0", flex: 1, overflow: "auto", display: "flex", flexDirection: "column", gap: 20 }}>
+        {groups.map((grp) => (
+          <div key={grp.title}>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: "#b0a28e",
+                letterSpacing: "0.6px",
+                textTransform: "uppercase",
+                marginBottom: 11,
+              }}
+            >
+              {grp.title}
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
+              {grp.chips.map((label) => (
+                <button key={label} style={chipStyle(!!love[label], accent)} onClick={() => onToggle(label)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
-    </div>
-  );
-}
 
-/**
- * Both paths are offered to EVERY rating (PRD C1/C5). The Google CTA is always
- * present and full-strength. A low rating only makes the private option visually
- * more prominent — it never demotes or hides the Google link.
- */
-function ChooseStep({
-  rating,
-  businessName,
-  onGoogle,
-  onPrivate,
-}: {
-  rating: number;
-  businessName: string;
-  onGoogle: () => void;
-  onPrivate: () => void;
-}) {
-  const lowRating = rating > 0 && rating <= 2;
-
-  const googleCard = (
-    <button
-      onClick={onGoogle}
-      className="w-full rounded-2xl border-2 border-slate-200 bg-white p-5 text-left shadow-sm transition hover:ring-brand"
-    >
-      <p className="text-lg font-semibold text-slate-900">⭐ Share your experience on Google</p>
-      <p className="mt-1 text-sm text-slate-500">
-        Help others discover {businessName}. You&apos;ll write it in your own words.
-      </p>
-      <span className="mt-3 inline-block font-medium text-brand">Write a Google review →</span>
-    </button>
-  );
-
-  const privateCard = (
-    <button
-      onClick={onPrivate}
-      className={`w-full rounded-2xl border-2 p-5 text-left shadow-sm transition hover:ring-brand ${
-        lowRating ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-white"
-      }`}
-    >
-      <p className="text-lg font-semibold text-slate-900">✉️ Send private feedback</p>
-      <p className="mt-1 text-sm text-slate-500">
-        Tell the manager directly — only they will see it.
-      </p>
-      <span className="mt-3 inline-block font-medium text-brand">Message the manager →</span>
-    </button>
-  );
-
-  return (
-    <div className="animate-in">
-      <h2 className="text-center text-xl font-semibold text-slate-900">
-        Thanks! What would you like to do?
-      </h2>
-      <p className="mt-1 text-center text-sm text-slate-500">Both options are open to everyone.</p>
-      <div className="mt-6 space-y-4">
-        {/* Order flips for low ratings to surface the private channel, but the
-            Google option is always shown with equal access. */}
-        {lowRating ? (
-          <>
-            {privateCard}
-            {googleCard}
-          </>
-        ) : (
-          <>
-            {googleCard}
-            {privateCard}
-          </>
-        )}
+      <div style={{ padding: "14px 22px 30px", flex: "none" }}>
+        <button style={primaryBtn(count > 0, accent)} onClick={() => count > 0 && onGenerate()} disabled={count === 0}>
+          {count > 0 ? `Build my review (${count})` : "Pick a few to continue"}
+        </button>
       </div>
     </div>
   );
 }
 
-/**
- * "Assist, don't author" (PRD C2/C3): open-ended prompts + voice-to-text help the
- * customer compose THEIR OWN words. The app never generates review text for them.
- */
-function AssistStep({
+/* ----------------------------- screen 3 · review ready (happy) ----------------------------- */
+
+function joinNaturally(items: string[]): string {
+  const lower = items.map((s) => s.toLowerCase());
+  if (lower.length <= 1) return lower[0] ?? "";
+  if (lower.length === 2) return `${lower[0]} and ${lower[1]}`;
+  return `${lower.slice(0, -1).join(", ")} and ${lower[lower.length - 1]}`;
+}
+
+function ReviewScreen({
+  businessName,
+  accent,
+  logoUrl,
   subdomain,
   googleReviewUrl,
-  prompts,
-  rating,
+  stars,
+  love,
   sampleReviewsEnabled,
   sampleReviewThreshold,
   sampleReviews,
   onBack,
-  onPrivate,
-}: Props & { rating: number; onBack: () => void; onPrivate: () => void }) {
-  // Opt-in "sample reviews": shown only when the business enabled it and the rating
-  // meets its threshold (e.g. 3★+). Customers copy a sample to paste into Google.
-  const showSamples =
-    sampleReviewsEnabled && rating >= sampleReviewThreshold && sampleReviews.length > 0;
-  const [notes, setNotes] = useState("");
-  const [listening, setListening] = useState(false);
+  onRestart,
+}: Props & { stars: number; love: Record<string, boolean>; onBack: () => void; onRestart: () => void }) {
+  const picks = Object.keys(love).filter((k) => love[k]);
+  // If the tenant manages approved sample copy AND this rating meets their configured
+  // threshold, use theirs; otherwise compose a starting draft from the customer's own
+  // selections. The customer always edits and posts in their own words on Google.
+  const useSample =
+    sampleReviewsEnabled && sampleReviews.length > 0 && stars >= sampleReviewThreshold;
+  const review = useSample
+    ? sampleReviews[0]
+    : `Had a wonderful time at ${businessName}!${
+          picks.length ? ` Really loved ${joinNaturally(picks)}.` : ""
+        } Friendly service and a great experience overall — highly recommend and will be back.`;
+
   const [copied, setCopied] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(false);
-  const recognitionRef = useRef<unknown>(null);
 
+  // Best-effort auto-copy on mount. Mobile browsers often block clipboard writes
+  // that aren't tied to a tap, so we only claim success when it actually worked —
+  // the explicit "Copy review" button below is the reliable, gesture-driven path.
   useEffect(() => {
-    const w = window as unknown as { webkitSpeechRecognition?: unknown; SpeechRecognition?: unknown };
-    setSpeechSupported(Boolean(w.webkitSpeechRecognition || w.SpeechRecognition));
-  }, []);
+    let active = true;
+    setCopied(false);
+    void copyToClipboard(review).then((ok) => {
+      if (active && ok) setCopied(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [review]);
 
-  function toggleVoice() {
-    const w = window as unknown as {
-      webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-      SpeechRecognition?: new () => SpeechRecognitionLike;
-    };
-    const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!Ctor) return;
-    if (listening) {
-      (recognitionRef.current as SpeechRecognitionLike | null)?.stop();
-      setListening(false);
-      return;
-    }
-    const rec = new Ctor();
-    rec.lang = "en-US";
-    rec.interimResults = false;
-    rec.continuous = true;
-    rec.onresult = (e: SpeechResultEventLike) => {
-      let text = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        text += e.results[i][0].transcript;
-      }
-      setNotes((prev) => (prev ? prev + " " : "") + text.trim());
-    };
-    rec.onend = () => setListening(false);
-    recognitionRef.current = rec;
-    rec.start();
-    setListening(true);
+  async function handleCopy() {
+    const ok = await copyToClipboard(review);
+    setCopied(ok);
   }
 
-  function openGoogle() {
-    void recordEvent(subdomain, "google_cta_click", rating);
-    const url = googleReviewUrl || "https://www.google.com/maps";
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
-
-  async function copyOwnWords() {
-    if (!notes.trim()) return;
-    try {
-      await navigator.clipboard.writeText(notes.trim());
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* clipboard may be blocked; the user can still select & copy manually */
-    }
+  async function openGoogle() {
+    // Copy on the tap itself — the gesture browsers trust most — so the review is
+    // on the clipboard even if the auto-copy on mount was blocked.
+    await copyToClipboard(review);
+    void recordEvent(subdomain, "google_cta_click", stars);
+    window.open(googleReviewUrl || "https://www.google.com/maps", "_blank", "noopener,noreferrer");
+    onRestart();
   }
 
   return (
-    <div className="animate-in">
-      <button onClick={onBack} className="text-sm text-slate-400 hover:text-slate-600">
-        ← Back
-      </button>
-      <h2 className="mt-2 text-xl font-semibold text-slate-900">Write your Google review</h2>
-      <p className="mt-1 text-sm text-slate-500">
-        These are just ideas to jog your memory. Write whatever is true for you.
-      </p>
-
-      {showSamples && (
-        <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-sm font-semibold text-slate-800">Sample reviews</p>
-          <p className="mt-0.5 text-xs text-slate-500">
-            Tap to copy one, then paste it on Google — or edit it to match your own experience.
-          </p>
-          <div className="mt-3 space-y-2">
-            {sampleReviews.map((text, i) => (
-              <SampleReviewCard key={i} text={text} />
-            ))}
-          </div>
+    <div className="scr-fade" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ height: 40, flex: "none" }} />
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 18px 0", flex: "none" }}>
+        <button style={backStyle} onClick={onBack} aria-label="Back">
+          ‹
+        </button>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-muted)", letterSpacing: "0.3px" }}>
+          STEP 3 OF 3
         </div>
-      )}
-
-      <ul className="mt-4 space-y-2">
-        {prompts.map((p) => (
-          <li
-            key={p}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-          >
-            💭 {p}
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-4">
-        <label className="text-sm font-medium text-slate-700">Your own words (optional)</label>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={4}
-          placeholder="Jot down your thoughts here…"
-          className="mt-1 w-full rounded-lg border border-slate-300 p-3 text-sm focus:outline-none focus-visible:ring-brand"
-        />
-        <div className="mt-2 flex flex-wrap gap-2">
-          {speechSupported && (
-            <button
-              onClick={toggleVoice}
-              className={`rounded-lg px-3 py-2 text-sm font-medium ${
-                listening ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-700"
-              }`}
-            >
-              {listening ? "● Stop voice" : "🎙️ Speak instead"}
-            </button>
-          )}
-          {notes.trim() && (
-            <button
-              onClick={copyOwnWords}
-              className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700"
-            >
-              {copied ? "Copied your words ✓" : "Copy my words"}
-            </button>
-          )}
-        </div>
-        <p className="mt-1 text-xs text-slate-400">
-          We never write the review for you. The words are always yours.
-        </p>
       </div>
 
-      <button
-        onClick={openGoogle}
-        className="btn-brand mt-5 w-full rounded-xl py-3.5 text-center font-semibold"
-      >
-        Open Google review →
-      </button>
+      <div style={{ padding: "20px 26px 0", flex: "none", textAlign: "center" }}>
+        <div
+          style={{
+            width: 60,
+            height: 60,
+            borderRadius: "50%",
+            margin: "0 auto",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: `linear-gradient(135deg, ${accent}, ${hexA(accent, 0.78)})`,
+            boxShadow: `0 14px 30px ${hexA(accent, 0.34)}`,
+          }}
+        >
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+            <path d="M5 13l4 4 10-11" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+        <div style={{ fontSize: 22, fontWeight: 800, marginTop: 16, letterSpacing: "-0.3px" }}>
+          Your review is ready
+        </div>
+        <div style={{ fontSize: 13.5, color: "var(--ink-muted)", marginTop: 7, fontWeight: 500 }}>
+          {copied ? "Copied — just paste it on Google below." : "Tap “Copy review”, then paste it on Google."}
+        </div>
+      </div>
 
-      <button
-        onClick={onPrivate}
-        className="mt-3 w-full rounded-xl border border-slate-300 py-3 text-center text-sm font-medium text-slate-600 hover:bg-slate-50"
-      >
-        Or send private feedback to the manager instead
-      </button>
+      <div style={{ padding: "22px 22px 0", flex: 1, overflow: "auto" }}>
+        <button
+          type="button"
+          onClick={handleCopy}
+          style={{
+            display: "block",
+            width: "100%",
+            textAlign: "left",
+            background: "#fffdf8",
+            border: "1px solid #ebdfcb",
+            borderRadius: 18,
+            padding: 18,
+            boxShadow: "0 10px 26px rgba(74,50,18,0.08)",
+            cursor: "pointer",
+            outline: "none",
+            WebkitTapHighlightColor: "transparent",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Logo logoUrl={logoUrl} businessName={businessName} size={38} accent={accent} />
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>{businessName}</div>
+              <div style={{ fontSize: 15, letterSpacing: "2px", color: "#e8a33d", marginTop: 1 }}>
+                {"★".repeat(Math.max(1, Math.min(5, stars)))}
+              </div>
+            </div>
+          </div>
+          <div
+            style={{
+              fontSize: 14,
+              lineHeight: 1.6,
+              color: "#4a3b2c",
+              marginTop: 13,
+              fontWeight: 500,
+              userSelect: "text",
+              WebkitUserSelect: "text",
+            }}
+          >
+            {review}
+          </div>
+        </button>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            marginTop: 14,
+            color: "var(--ink-muted)",
+            fontSize: 12,
+            fontWeight: 600,
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <rect x="8" y="8" width="11" height="13" rx="2" stroke="currentColor" strokeWidth="2" />
+            <path d="M5 16V4a1 1 0 0 1 1-1h9" stroke="currentColor" strokeWidth="2" />
+          </svg>
+          It&apos;s your review — edit it freely on Google
+        </div>
+      </div>
+
+      <div style={{ padding: "14px 22px 30px", flex: "none", display: "flex", flexDirection: "column", gap: 12 }}>
+        <button style={copyBtn(copied, accent)} onClick={handleCopy}>
+          {copied ? (
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+              <path d="M5 13l4 4 10-11" stroke={accent} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <rect x="8" y="8" width="11" height="13" rx="2" stroke={accent} strokeWidth="2" />
+              <path d="M5 16V4a1 1 0 0 1 1-1h9" stroke={accent} strokeWidth="2" />
+            </svg>
+          )}
+          {copied ? "Copied to clipboard" : "Copy review"}
+        </button>
+        <button style={primaryBtn(true, "#4c8bf5")} onClick={openGoogle}>
+          <svg width="18" height="18" viewBox="0 0 48 48">
+            <path
+              fill="#fff"
+              d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z"
+            />
+          </svg>
+          Open Google to post
+        </button>
+      </div>
     </div>
   );
 }
 
-function SampleReviewCard({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* clipboard may be blocked; the user can still select & copy manually */
-    }
-  }
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-      <p className="text-sm text-slate-700">{text}</p>
-      <button
-        onClick={copy}
-        className="mt-2 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700"
-      >
-        {copied ? "Copied ✓" : "Copy"}
-      </button>
-    </div>
-  );
-}
+/* ----------------------------- screen 2' · complaint (friction) ----------------------------- */
 
-function PrivateStep({
+function ComplaintScreen({
   subdomain,
+  accent,
   rating,
-  onDone,
-  onGoogle,
-}: Props & { rating: number; onDone: () => void; onGoogle: () => void }) {
-  const [feedbackText, setFeedbackText] = useState("");
-  const [showContact, setShowContact] = useState(false);
-  const [contactName, setName] = useState("");
-  const [contactPhone, setPhone] = useState("");
-  const [contactEmail, setEmail] = useState("");
+  issues,
+  text,
+  onText,
+  onToggle,
+  onBack,
+  onSent,
+}: Props & {
+  rating: number;
+  issues: Record<string, boolean>;
+  text: string;
+  onText: (v: string) => void;
+  onToggle: (k: string) => void;
+  onBack: () => void;
+  onSent: () => void;
+}) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function submit() {
+  async function send() {
     setSubmitting(true);
     setError(null);
-    const res = await submitFeedback({
-      subdomain,
-      rating,
-      feedbackText,
-      contactName,
-      contactPhone,
-      contactEmail,
-    });
+    const picked = Object.keys(issues).filter((k) => issues[k]);
+    const feedbackText = [picked.length ? `Issues: ${picked.join(", ")}.` : "", text.trim()]
+      .filter(Boolean)
+      .join("\n")
+      .trim();
+    const res = await submitFeedback({ subdomain, rating, feedbackText });
     setSubmitting(false);
-    if (res.ok) onDone();
+    if (res.ok) onSent();
     else setError(res.error ?? "Something went wrong. Please try again.");
   }
 
   return (
-    <div className="animate-in">
-      <h2 className="text-xl font-semibold text-slate-900">Private feedback to the manager</h2>
-      <p className="mt-1 text-sm text-slate-500">
-        Only the manager sees this. It won&apos;t be posted publicly.
-      </p>
-
-      <label className="mt-4 block text-sm font-medium text-slate-700">
-        What would you like them to know?
-      </label>
-      <textarea
-        value={feedbackText}
-        onChange={(e) => setFeedbackText(e.target.value)}
-        rows={4}
-        placeholder="Tell the manager what happened…"
-        className="mt-1 w-full rounded-lg border border-slate-300 p-3 text-sm focus:outline-none focus-visible:ring-brand"
-      />
-
-      {!showContact ? (
-        <button
-          onClick={() => setShowContact(true)}
-          className="mt-3 text-sm font-medium text-brand"
-        >
-          + Add contact details (optional, for follow-up)
+    <div className="scr-fade" style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <div style={{ height: 40, flex: "none" }} />
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 18px 0", flex: "none" }}>
+        <button style={backStyle} onClick={onBack} aria-label="Back">
+          ‹
         </button>
-      ) : (
-        <div className="mt-3 space-y-2">
-          <input
-            value={contactName}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Name (optional)"
-            className="w-full rounded-lg border border-slate-300 p-2.5 text-sm"
-          />
-          <input
-            value={contactPhone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="Phone (optional)"
-            className="w-full rounded-lg border border-slate-300 p-2.5 text-sm"
-          />
-          <input
-            value={contactEmail}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email (optional)"
-            className="w-full rounded-lg border border-slate-300 p-2.5 text-sm"
-          />
-          <p className="text-xs text-slate-400">
-            Contact details are optional and used only to follow up with you.
-          </p>
+        <div style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-muted)", letterSpacing: "0.3px" }}>
+          PRIVATE FEEDBACK
         </div>
-      )}
-
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-
-      <button
-        onClick={submit}
-        disabled={submitting || !feedbackText.trim()}
-        className="btn-brand mt-5 w-full rounded-xl py-3.5 text-center font-semibold disabled:opacity-50"
-      >
-        {submitting ? "Sending…" : "Send to manager"}
-      </button>
-
-      <button
-        onClick={onGoogle}
-        className="mt-3 w-full rounded-xl border border-slate-300 py-3 text-center text-sm font-medium text-slate-600 hover:bg-slate-50"
-      >
-        Share on Google as well →
-      </button>
-    </div>
-  );
-}
-
-function ThanksStep({ message }: { message: string }) {
-  return (
-    <div className="animate-in flex flex-col items-center pt-12 text-center">
-      <div
-        className="flex h-20 w-20 items-center justify-center rounded-full text-4xl text-white"
-        style={{ background: "var(--brand-primary)" }}
-      >
-        ✓
       </div>
-      <h2 className="mt-5 text-2xl font-semibold text-slate-900">{message}</h2>
-      <p className="mt-2 text-slate-500">Your input helps the team improve. Have a great day!</p>
+
+      <div style={{ padding: "18px 26px 0", flex: "none", textAlign: "center" }}>
+        <div style={{ fontSize: 38, lineHeight: 1 }}>🙏</div>
+        <div style={{ fontSize: 22, fontWeight: 800, marginTop: 12, lineHeight: 1.2, letterSpacing: "-0.3px" }}>
+          We&apos;re sorry we missed the mark
+        </div>
+        <div style={{ fontSize: 13.5, color: "var(--ink-muted)", marginTop: 8, fontWeight: 500, lineHeight: 1.45 }}>
+          Tell us what went wrong — this goes straight to the manager, privately.
+        </div>
+      </div>
+
+      <div style={{ padding: "22px 22px 0", flex: 1, display: "flex", flexDirection: "column", gap: 14, overflow: "auto" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
+          {ISSUE_CHIPS.map((label) => (
+            <button key={label} style={chipStyle(!!issues[label], accent)} onClick={() => onToggle(label)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <textarea
+          value={text}
+          onChange={(e) => onText(e.target.value)}
+          placeholder="Add any details (optional)…"
+          style={{
+            flex: 1,
+            minHeight: 110,
+            background: "#fffdf8",
+            border: "1px solid #ebdfcb",
+            borderRadius: 16,
+            padding: 14,
+            color: "var(--ink)",
+            fontSize: 14,
+            fontFamily: "var(--font-sans)",
+            fontWeight: 500,
+            lineHeight: 1.5,
+            resize: "none",
+            outline: "none",
+          }}
+        />
+        {error && <p style={{ color: "#c0392b", fontSize: 13, fontWeight: 600, margin: 0 }}>{error}</p>}
+      </div>
+
+      <div style={{ padding: "14px 22px 30px", flex: "none" }}>
+        <button
+          style={{ ...primaryBtn(true, accent), opacity: submitting ? 0.6 : 1 }}
+          onClick={send}
+          disabled={submitting}
+        >
+          {submitting ? "Sending…" : "Send privately to the manager"}
+        </button>
+      </div>
     </div>
   );
 }
 
-function ComplianceFooter() {
-  return (
-    <p className="mt-8 text-center text-[11px] leading-relaxed text-slate-400">
-      Reviews are your own honest words. We never write, edit, filter, or pay for reviews, and the
-      Google option is offered to everyone equally.
-    </p>
-  );
-}
+/* ----------------------------- screen 3' · sent (friction) ----------------------------- */
 
-// --- Minimal types for the Web Speech API (not in lib.dom for all targets). ---
-interface SpeechRecognitionLike {
-  lang: string;
-  interimResults: boolean;
-  continuous: boolean;
-  start: () => void;
-  stop: () => void;
-  onresult: ((e: SpeechResultEventLike) => void) | null;
-  onend: (() => void) | null;
-}
-interface SpeechResultEventLike {
-  resultIndex: number;
-  results: Array<Array<{ transcript: string }>>;
+function SentScreen({
+  accent,
+  subdomain,
+  googleReviewUrl,
+  thankYouMessage,
+  onRestart,
+}: Props & { onRestart: () => void }) {
+  function openGoogle() {
+    void recordEvent(subdomain, "google_cta_click");
+    window.open(googleReviewUrl || "https://www.google.com/maps", "_blank", "noopener,noreferrer");
+  }
+  return (
+    <div
+      className="scr-fade"
+      style={{
+        height: "100%",
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "40px 34px",
+        textAlign: "center",
+      }}
+    >
+      <div
+        style={{
+          width: 72,
+          height: 72,
+          borderRadius: "50%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: `linear-gradient(135deg, ${accent}, ${hexA(accent, 0.78)})`,
+          boxShadow: `0 14px 30px ${hexA(accent, 0.34)}`,
+        }}
+      >
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none">
+          <path d="M5 13l4 4 10-11" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+      <div style={{ fontSize: 24, fontWeight: 800, marginTop: 22, letterSpacing: "-0.3px" }}>
+        Sent to the manager
+      </div>
+      <div style={{ fontSize: 14, color: "var(--ink-muted)", marginTop: 10, fontWeight: 500, lineHeight: 1.5 }}>
+        {thankYouMessage} Someone will reach out shortly.
+      </div>
+      <button style={{ ...primaryBtn(true, accent), width: "auto", padding: "0 40px", marginTop: 26 }} onClick={onRestart}>
+        Done
+      </button>
+      <button
+        onClick={openGoogle}
+        style={{
+          background: "none",
+          border: "none",
+          fontSize: 12,
+          color: "#c2b5a1",
+          marginTop: 18,
+          fontWeight: 600,
+          maxWidth: 230,
+          lineHeight: 1.5,
+          textDecoration: "underline",
+          cursor: "pointer",
+          fontFamily: "var(--font-sans)",
+        }}
+      >
+        Still want to post publicly on Google?
+      </button>
+    </div>
+  );
 }

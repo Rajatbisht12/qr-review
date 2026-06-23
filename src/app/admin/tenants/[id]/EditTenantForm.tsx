@@ -30,26 +30,22 @@ export default function EditTenantForm({ tenant }: { tenant: Tenant }) {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-      <form action={action} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <form action={action} className="warm-card p-6">
         <input type="hidden" name="id" value={tenant.id} />
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="text-sm font-medium text-slate-700">Business name</label>
+            <label className="warm-label">Business name</label>
             <input
               name="businessName"
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm"
+              className="warm-input mt-1.5"
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-slate-700">Category</label>
-            <select
-              name="category"
-              defaultValue={tenant.category}
-              className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm"
-            >
+            <label className="warm-label">Category</label>
+            <select name="category" defaultValue={tenant.category} className="warm-select mt-1.5">
               <option value="restaurant">Restaurant</option>
               <option value="cafe">Café</option>
               <option value="salon">Salon</option>
@@ -57,67 +53,67 @@ export default function EditTenantForm({ tenant }: { tenant: Tenant }) {
             </select>
           </div>
           <div className="sm:col-span-2">
-            <label className="text-sm font-medium text-slate-700">Google review URL</label>
+            <label className="warm-label">Google review URL</label>
             <input
               name="googleReviewUrl"
               defaultValue={tenant.googleReviewUrl}
               placeholder="https://search.google.com/local/writereview?placeid=…"
-              className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm"
+              className="warm-input mt-1.5"
             />
           </div>
           <div className="sm:col-span-2">
-            <label className="text-sm font-medium text-slate-700">Welcome message</label>
+            <label className="warm-label">Welcome message</label>
             <input
               name="welcomeMessage"
               value={welcomeMessage}
               onChange={(e) => setWelcomeMessage(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm"
+              className="warm-input mt-1.5"
             />
           </div>
           <div className="sm:col-span-2">
-            <label className="text-sm font-medium text-slate-700">Logo URL (optional)</label>
+            <label className="warm-label">Logo URL (optional)</label>
             <input
               name="logoUrl"
               value={logoUrl}
               onChange={(e) => setLogoUrl(e.target.value)}
               placeholder="https://…/logo.png"
-              className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm"
+              className="warm-input mt-1.5"
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-slate-700">Primary colour</label>
+            <label className="warm-label">Primary colour</label>
             <input
               name="colorPrimary"
               type="color"
               value={colorPrimary}
               onChange={(e) => setColorPrimary(e.target.value)}
-              className="mt-1 h-10 w-full rounded-lg border border-slate-300"
+              className="mt-1.5 h-10 w-full rounded-lg border border-[#e6dac6]"
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-slate-700">Secondary colour</label>
+            <label className="warm-label">Secondary colour</label>
             <input
               name="colorSecondary"
               type="color"
               defaultValue={tenant.colorSecondary}
-              className="mt-1 h-10 w-full rounded-lg border border-slate-300"
+              className="mt-1.5 h-10 w-full rounded-lg border border-[#e6dac6]"
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-slate-700">Manager WhatsApp</label>
+            <label className="warm-label">Manager WhatsApp</label>
             <input
               name="whatsappNumber"
               defaultValue={tenant.whatsappNumber}
               placeholder="+91…"
-              className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm"
+              className="warm-input mt-1.5"
             />
           </div>
           <div>
-            <label className="text-sm font-medium text-slate-700">Alert when rating ≤</label>
+            <label className="warm-label">Alert when rating ≤</label>
             <select
               name="alertThreshold"
               defaultValue={String(tenant.alertThreshold)}
-              className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm"
+              className="warm-select mt-1.5"
             >
               {[1, 2, 3, 4, 5].map((n) => (
                 <option key={n} value={n}>
@@ -127,12 +123,8 @@ export default function EditTenantForm({ tenant }: { tenant: Tenant }) {
             </select>
           </div>
           <div>
-            <label className="text-sm font-medium text-slate-700">Status</label>
-            <select
-              name="status"
-              defaultValue={tenant.status}
-              className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 text-sm"
-            >
+            <label className="warm-label">Status</label>
+            <select name="status" defaultValue={tenant.status} className="warm-select mt-1.5">
               <option value="active">Active</option>
               <option value="suspended">Suspended</option>
             </select>
@@ -146,7 +138,7 @@ export default function EditTenantForm({ tenant }: { tenant: Tenant }) {
               type="checkbox"
               name="sampleReviewsEnabled"
               defaultChecked={tenant.sampleReviewsEnabled}
-              className="mt-1"
+              className="mt-1 accent-[var(--brand-primary)]"
             />
             <span>
               <span className="text-sm font-semibold text-slate-800">
@@ -160,11 +152,11 @@ export default function EditTenantForm({ tenant }: { tenant: Tenant }) {
             </span>
           </label>
           <div className="mt-3">
-            <label className="text-sm font-medium text-slate-700">Show to ratings of ≥</label>
+            <label className="warm-label inline">Show to ratings of ≥</label>
             <select
               name="sampleReviewThreshold"
               defaultValue={String(tenant.sampleReviewThreshold)}
-              className="ml-2 rounded-lg border border-slate-300 p-1.5 text-sm"
+              className="warm-select ml-2 inline-block w-auto p-1.5"
             >
               {[1, 2, 3, 4, 5].map((n) => (
                 <option key={n} value={n}>
@@ -175,26 +167,30 @@ export default function EditTenantForm({ tenant }: { tenant: Tenant }) {
           </div>
         </div>
 
-        {state?.error && <p className="mt-3 text-sm text-red-600">{state.error}</p>}
-        {state?.ok && <p className="mt-3 text-sm text-emerald-600">Saved ✓</p>}
+        {state?.error && (
+          <p className="mt-3 text-sm font-semibold" style={{ color: "#c0392b" }}>
+            {state.error}
+          </p>
+        )}
+        {state?.ok && (
+          <p className="mt-3 text-sm font-semibold" style={{ color: "#2e7d32" }}>
+            Saved ✓
+          </p>
+        )}
 
-        <button
-          type="submit"
-          disabled={pending}
-          className="mt-5 rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-        >
+        <button type="submit" disabled={pending} className="warm-btn mt-5">
           {pending ? "Saving…" : "Save changes"}
         </button>
       </form>
 
       {/* Live phone preview */}
       <div className="lg:sticky lg:top-6">
-        <p className="mb-2 text-sm font-semibold text-slate-500">Live preview</p>
-        <div className="mx-auto w-full max-w-[280px] rounded-[2rem] border-8 border-slate-900 bg-white p-5 shadow-xl">
+        <p className="warm-eyebrow mb-2">Live preview</p>
+        <div className="mx-auto w-full max-w-[280px] rounded-[2rem] border-8 border-[#2a211a] bg-[#fffdf8] p-5 shadow-xl">
           <div
             className="flex flex-col items-center rounded-2xl p-5 text-center"
             style={{
-              background: `linear-gradient(160deg, color-mix(in srgb, ${colorPrimary} 10%, #fff), #fff)`,
+              background: `linear-gradient(160deg, color-mix(in srgb, ${colorPrimary} 10%, #fffdf8), #fffdf8)`,
             }}
           >
             {logoUrl ? (
@@ -208,8 +204,8 @@ export default function EditTenantForm({ tenant }: { tenant: Tenant }) {
                 {businessName.charAt(0) || "?"}
               </div>
             )}
-            <p className="mt-3 font-bold text-slate-900">{businessName || "Business"}</p>
-            <p className="mt-2 text-sm font-semibold text-slate-700">{welcomeMessage}</p>
+            <p className="font-serif mt-3 text-lg text-[var(--ink)]">{businessName || "Business"}</p>
+            <p className="mt-2 text-sm font-semibold text-[#4a3b2c]">{welcomeMessage}</p>
             <div className="mt-3 text-2xl" style={{ color: colorPrimary }}>
               ★★★★★
             </div>
