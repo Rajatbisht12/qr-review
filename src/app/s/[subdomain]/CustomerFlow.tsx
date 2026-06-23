@@ -249,6 +249,23 @@ function copyBtn(copied: boolean, accent: string): CSSProperties {
   };
 }
 
+function reviewOption(selected: boolean, accent: string): CSSProperties {
+  return {
+    display: "block",
+    width: "100%",
+    textAlign: "left",
+    background: selected ? "#fffdf8" : "#fbf6ec",
+    border: `1.5px solid ${selected ? accent : "#ebdfcb"}`,
+    borderRadius: 16,
+    padding: 16,
+    cursor: "pointer",
+    outline: "none",
+    WebkitTapHighlightColor: "transparent",
+    boxShadow: selected ? `0 10px 24px ${hexA(accent, 0.16)}` : "none",
+    transition: "border-color .16s, box-shadow .16s, background .16s",
+  };
+}
+
 const backStyle: CSSProperties = {
   width: 38,
   height: 38,
@@ -588,16 +605,22 @@ function ReviewScreen({
   onRestart,
 }: Props & { stars: number; love: Record<string, boolean>; onBack: () => void; onRestart: () => void }) {
   const picks = Object.keys(love).filter((k) => love[k]);
-  // If the tenant manages approved sample copy AND this rating meets their configured
-  // threshold, use theirs; otherwise compose a starting draft from the customer's own
-  // selections. The customer always edits and posts in their own words on Google.
+
+  // Personalised draft composed from the customer's own selections — always available.
+  const composed = `Had a wonderful time at ${businessName}!${
+    picks.length ? ` Really loved ${joinNaturally(picks)}.` : ""
+  } Friendly service and a great experience overall — highly recommend and will be back.`;
+
+  // When the tenant manages approved sample copy AND this rating meets their configured
+  // threshold, offer those reviews for the customer to choose from; otherwise just the
+  // personalised draft. The customer always edits and posts in their own words on Google.
   const useSample =
     sampleReviewsEnabled && sampleReviews.length > 0 && stars >= sampleReviewThreshold;
-  const review = useSample
-    ? sampleReviews[0]
-    : `Had a wonderful time at ${businessName}!${
-          picks.length ? ` Really loved ${joinNaturally(picks)}.` : ""
-        } Friendly service and a great experience overall — highly recommend and will be back.`;
+  const options = useSample ? sampleReviews : [composed];
+  const multiple = options.length > 1;
+
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const review = options[selectedIdx] ?? options[0];
 
   const [copied, setCopied] = useState(false);
 
@@ -660,54 +683,88 @@ function ReviewScreen({
           </svg>
         </div>
         <div style={{ fontSize: 22, fontWeight: 800, marginTop: 16, letterSpacing: "-0.3px" }}>
-          Your review is ready
+          {multiple ? "Choose your review" : "Your review is ready"}
         </div>
         <div style={{ fontSize: 13.5, color: "var(--ink-muted)", marginTop: 7, fontWeight: 500 }}>
-          {copied ? "Copied — just paste it on Google below." : "Tap “Copy review”, then paste it on Google."}
+          {copied
+            ? "Copied — just paste it on Google below."
+            : multiple
+              ? "Pick the one you like, then tap “Copy review”."
+              : "Tap “Copy review”, then paste it on Google."}
         </div>
       </div>
 
       <div style={{ padding: "22px 22px 0", flex: 1, overflow: "auto" }}>
-        <button
-          type="button"
-          onClick={handleCopy}
-          style={{
-            display: "block",
-            width: "100%",
-            textAlign: "left",
-            background: "#fffdf8",
-            border: "1px solid #ebdfcb",
-            borderRadius: 18,
-            padding: 18,
-            boxShadow: "0 10px 26px rgba(74,50,18,0.08)",
-            cursor: "pointer",
-            outline: "none",
-            WebkitTapHighlightColor: "transparent",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <Logo logoUrl={logoUrl} businessName={businessName} size={38} accent={accent} />
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>{businessName}</div>
-              <div style={{ fontSize: 15, letterSpacing: "2px", color: "#e8a33d", marginTop: 1 }}>
-                {"★".repeat(Math.max(1, Math.min(5, stars)))}
-              </div>
+        {/* business header — shown once above the choices */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <Logo logoUrl={logoUrl} businessName={businessName} size={38} accent={accent} />
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>{businessName}</div>
+            <div style={{ fontSize: 15, letterSpacing: "2px", color: "#e8a33d", marginTop: 1 }}>
+              {"★".repeat(Math.max(1, Math.min(5, stars)))}
             </div>
           </div>
+        </div>
+
+        {multiple && (
           <div
             style={{
-              fontSize: 14,
-              lineHeight: 1.6,
-              color: "#4a3b2c",
-              marginTop: 13,
-              fontWeight: 500,
-              userSelect: "text",
-              WebkitUserSelect: "text",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "#b0a28e",
+              letterSpacing: "0.6px",
+              textTransform: "uppercase",
+              marginBottom: 10,
             }}
           >
-            {review}
+            {options.length} reviews to choose from
           </div>
-        </button>
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {options.map((opt, i) => {
+            const sel = i === selectedIdx;
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => (multiple ? setSelectedIdx(i) : handleCopy())}
+                style={reviewOption(sel, accent)}
+              >
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 11 }}>
+                  {multiple && (
+                    <span
+                      aria-hidden
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: "50%",
+                        flex: "none",
+                        marginTop: 2,
+                        background: "#fff",
+                        border: sel ? `6px solid ${accent}` : "2px solid #d8c9af",
+                        transition: "border-color .15s, border-width .15s",
+                      }}
+                    />
+                  )}
+                  <div
+                    style={{
+                      fontSize: 14,
+                      lineHeight: 1.6,
+                      color: "#4a3b2c",
+                      fontWeight: 500,
+                      userSelect: "text",
+                      WebkitUserSelect: "text",
+                    }}
+                  >
+                    {opt}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
         <div
           style={{
             display: "flex",
