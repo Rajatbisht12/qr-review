@@ -590,6 +590,30 @@ function joinNaturally(items: string[]): string {
   return `${lower.slice(0, -1).join(", ")} and ${lower[lower.length - 1]}`;
 }
 
+/** Generate a few distinct review drafts from the customer's own picks so there is
+ *  always more than one to choose from. These are starting points — the customer edits
+ *  and posts in their own words on Google. */
+function composeVariants(businessName: string, picks: string[], stars: number): string[] {
+  const loved = picks.length ? joinNaturally(picks) : "";
+  const lovedCap = loved ? loved.charAt(0).toUpperCase() + loved.slice(1) : "";
+  const recommend = stars >= 4 ? "Highly recommend" : "Recommend";
+
+  return [
+    `Had a wonderful time at ${businessName}!${
+      loved ? ` Really loved ${loved}.` : ""
+    } Friendly service and a great experience overall — ${recommend.toLowerCase()} and will be back.`,
+    `${businessName} was fantastic.${
+      loved ? ` Loved ${loved}.` : ""
+    } Warm, welcoming staff and a great atmosphere — will definitely be back!`,
+    `${recommend} ${businessName}!${
+      loved ? ` ${lovedCap} really made it.` : ""
+    } Friendly service from start to finish and a genuinely lovely experience.`,
+    `Really enjoyed ${businessName}.${
+      loved ? ` ${lovedCap} stood out.` : ""
+    } Great service and a lovely vibe — well worth a visit.`,
+  ];
+}
+
 function ReviewScreen({
   businessName,
   accent,
@@ -606,17 +630,13 @@ function ReviewScreen({
 }: Props & { stars: number; love: Record<string, boolean>; onBack: () => void; onRestart: () => void }) {
   const picks = Object.keys(love).filter((k) => love[k]);
 
-  // Personalised draft composed from the customer's own selections — always available.
-  const composed = `Had a wonderful time at ${businessName}!${
-    picks.length ? ` Really loved ${joinNaturally(picks)}.` : ""
-  } Friendly service and a great experience overall — highly recommend and will be back.`;
-
   // When the tenant manages approved sample copy AND this rating meets their configured
-  // threshold, offer those reviews for the customer to choose from; otherwise just the
-  // personalised draft. The customer always edits and posts in their own words on Google.
+  // threshold, offer those reviews to choose from. Otherwise generate a few personalised
+  // drafts from the customer's own selections so there's always more than one to pick.
+  // The customer always edits and posts in their own words on Google.
   const useSample =
     sampleReviewsEnabled && sampleReviews.length > 0 && stars >= sampleReviewThreshold;
-  const options = useSample ? sampleReviews : [composed];
+  const options = useSample ? sampleReviews : composeVariants(businessName, picks, stars);
   const multiple = options.length > 1;
 
   const [selectedIdx, setSelectedIdx] = useState(0);
