@@ -11,7 +11,7 @@
  * on-brand experience.
  */
 
-export type SurveyTag = { label: string; emoji: string };
+export type SurveyTag = { label: string; emoji: string; icon?: string };
 export type SurveyPage = { title: string; subtitle: string; tags: SurveyTag[] };
 
 export type CategoryConfig = {
@@ -30,14 +30,14 @@ const SERVICE_PAGE: SurveyPage = {
   title: "How was the service?",
   subtitle: "Select all that apply",
   tags: [
-    { label: "Friendly Staff", emoji: "😊" },
-    { label: "Quick Service", emoji: "⚡" },
-    { label: "Helpful", emoji: "🤝" },
-    { label: "Professional", emoji: "👔" },
-    { label: "Attentive", emoji: "👀" },
-    { label: "Welcoming", emoji: "🙌" },
-    { label: "Knowledgeable", emoji: "💡" },
-    { label: "Responsive", emoji: "🔔" },
+    { label: "Friendly Staff", emoji: "😊", icon: "heart" },
+    { label: "Quick Service", emoji: "⚡", icon: "clock" },
+    { label: "Helpful", emoji: "🤝", icon: "tag" },
+    { label: "Professional", emoji: "👔", icon: "badge" },
+    { label: "Attentive", emoji: "👀", icon: "alert" },
+    { label: "Welcoming", emoji: "🙌", icon: "smile" },
+    { label: "Knowledgeable", emoji: "💡", icon: "bulb" },
+    { label: "Responsible", emoji: "🔔", icon: "chat" },
   ],
 };
 
@@ -51,14 +51,14 @@ const CONFIGS: Record<string, CategoryConfig> = {
         title: "What stood out about the food?",
         subtitle: "Select all that apply",
         tags: [
-          { label: "Fresh Ingredients", emoji: "🥬" },
-          { label: "Great Taste", emoji: "😋" },
-          { label: "Well Cooked", emoji: "🍳" },
-          { label: "Good Portions", emoji: "🍽️" },
-          { label: "Authentic Flavors", emoji: "🌶️" },
-          { label: "Beautifully Presented", emoji: "✨" },
-          { label: "Good Variety", emoji: "📋" },
-          { label: "Perfect Temperature", emoji: "🌡️" },
+          { label: "Fresh Ingredients", emoji: "🥬", icon: "leaf" },
+          { label: "Great Taste", emoji: "😋", icon: "fork" },
+          { label: "Well Cooked", emoji: "🍳", icon: "pot" },
+          { label: "Good Portions", emoji: "🍽️", icon: "plate" },
+          { label: "Authentic Flavors", emoji: "🌶️", icon: "chili" },
+          { label: "Beautifully Presented", emoji: "✨", icon: "sparkle" },
+          { label: "Good Variety", emoji: "📋", icon: "grid" },
+          { label: "Perfect Temperature", emoji: "🌡️", icon: "thermo" },
         ],
       },
       SERVICE_PAGE,

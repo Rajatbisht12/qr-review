@@ -10,6 +10,10 @@
   --ink-muted: #9a8c7a;
   --font-serif: var(--font-marcellus), Georgia, serif;
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* Customer-flow fonts from the Figma. */
+  --font-display: var(--font-itim), "Segoe UI", system-ui, sans-serif; /* headings */
+  --font-hand: var(--font-kalam), "Comic Sans MS", cursive; /* handwritten body */
+  --font-ui: var(--font-roboto), ui-sans-serif, system-ui, sans-serif; /* sub-headers, small labels */
 }
 
 html {
@@ -24,6 +28,15 @@ body {
 
 .font-serif {
   font-family: var(--font-serif);
+}
+
+/* Horizontal review carousel: hide the scrollbar while keeping it swipeable. */
+.hide-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hide-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 /* Brand-driven utilities used on customer-facing pages. */
