@@ -324,7 +324,7 @@ function Shell({
           <div
             className="scr-fade"
             style={{
-              flex: 1,
+              flex: 0.5,
               display: "flex",
               flexDirection: "column",
               background: "rgba(253, 240, 230, 0.98)",
@@ -639,31 +639,24 @@ function RatingArt({ artKey, mood, active, ring }: { artKey: string; mood: numbe
   );
 }
 
-/** Faint line-art botanical sprig tucked into the rating card's top-right corner. */
+/** Botanical line-art (exported from Figma) trailing down from the card's top-right corner. */
 function LeafDecoration() {
   return (
-    <svg
-      width="150"
-      height="180"
-      viewBox="0 0 160 190"
-      fill="none"
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/leaf-decoration.svg"
+      alt=""
       aria-hidden
-      style={{ position: "absolute", top: -10, right: -8, opacity: 0.4, pointerEvents: "none" }}
-    >
-      <g stroke="#bfa07d" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none">
-        <path d="M140 4 C120 34 108 74 112 122 C114 146 118 164 112 188" />
-        <path d="M126 26 C140 16 151 22 153 37 C139 43 128 39 126 26Z" />
-        <path d="M129 31 L150 33" />
-        <path d="M116 52 C101 44 90 50 86 64 C102 70 114 64 116 52Z" />
-        <path d="M90 62 L113 56" />
-        <path d="M114 80 C128 72 140 78 142 92 C128 98 116 92 114 80Z" />
-        <path d="M118 84 L140 88" />
-        <path d="M110 106 C95 99 84 105 82 119 C98 125 108 119 110 106Z" />
-        <path d="M86 117 L108 110" />
-        <path d="M110 132 C124 126 136 132 138 146 C124 152 112 146 110 132Z" />
-        <path d="M114 136 L136 142" />
-      </g>
-    </svg>
+      style={{
+        position: "absolute",
+        top: -10,
+        right: -8,
+        width: "auto",
+        height: 300,
+        opacity: 1,
+        pointerEvents: "none",
+      }}
+    />
   );
 }
 
@@ -1184,34 +1177,22 @@ function CarouselArrow({ dir, disabled, onClick }: { dir: "left" | "right"; disa
   );
 }
 
-/**
- * Five-star row under each review draft (filled = the customer's rating). Uses the
- * exported /star.png art when present, falling back to an SVG star otherwise.
- */
+/** Five-star row under each review draft (filled = the customer's rating), using the
+ *  exported /star.png art. */
 function Stars({ value }: { value: number }) {
-  const GOLD = "#dba255";
-  const [imgFailed, setImgFailed] = useState(false);
   return (
     <div style={{ display: "flex", gap: 4 }} aria-label={`${value} out of 5`}>
-      {Array.from({ length: 5 }).map((_, i) => {
-        const filled = i < value;
-        return imgFailed ? (
-          <svg key={i} width="15" height="15" viewBox="0 0 24 24" fill={filled ? GOLD : "none"} stroke={GOLD} strokeWidth="1.4">
-            <path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 18.6 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z" />
-          </svg>
-        ) : (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={i}
-            src="/star.png"
-            alt=""
-            width={15}
-            height={15}
-            style={{ display: "block", opacity: filled ? 1 : 0.28 }}
-            onError={() => setImgFailed(true)}
-          />
-        );
-      })}
+      {Array.from({ length: 5 }).map((_, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={i}
+          src="/star.png"
+          alt=""
+          width={16}
+          height={16}
+          style={{ display: "block", opacity: i < value ? 1 : 0.3 }}
+        />
+      ))}
     </div>
   );
 }
@@ -1285,7 +1266,7 @@ function ReviewScreen({
         <TitleBlock title="Share your experience" subtitle="Choose one option below. You can still edit before posting." />
       </div>
 
-      <div style={{ flex: 1, overflow: "auto", minHeight: 0, paddingRight: 2 }}>
+      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", minHeight: 0, paddingRight: 2 }}>
         {/* horizontal draft carousel — a peeking next card + side arrows (Figma) */}
         <div style={{ position: "relative" }}>
           <div
@@ -1444,12 +1425,8 @@ function ReviewScreen({
               flex: "none",
             }}
           >
-            <svg width="13" height="13" viewBox="0 0 48 48">
-              <path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-2.7-.4-3.9H24v7.1h12.1c-.2 1.8-1.6 4.6-4.5 6.4l-.04.3 6.5 5 .45.05c4.1-3.8 6.1-9.4 6.1-15z" />
-              <path fill="#34A853" d="M24 46c5.9 0 10.9-1.9 14.5-5.3l-6.9-5.4c-1.8 1.3-4.3 2.2-7.6 2.2-5.8 0-10.7-3.8-12.5-9.1l-.3.02-6.7 5.2-.1.3C7.5 41 15.1 46 24 46z" />
-              <path fill="#FBBC05" d="M11.5 28.4c-.5-1.4-.7-2.9-.7-4.4s.3-3 .7-4.4l-.02-.3-6.8-5.3-.2.1C2.9 17.1 2 20.4 2 24s.9 6.9 2.4 9.9l7.1-5.5z" />
-              <path fill="#EA4335" d="M24 9.5c4.1 0 6.9 1.8 8.5 3.3l6.2-6C34.9 3.3 29.9 1 24 1 15.1 1 7.5 6 4.4 13.1l7.1 5.5C13.3 13.3 18.2 9.5 24 9.5z" />
-            </svg>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/devicon_google.png" alt="" width={14} height={14} style={{ display: "block", objectFit: "contain" }} />
           </span>
           Open Google to post
           <ArrowRight />
