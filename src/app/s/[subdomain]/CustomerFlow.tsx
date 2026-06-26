@@ -98,7 +98,6 @@ export default function CustomerFlow(props: Props) {
   const [selected, setSelected] = useState<number | null>(null);
   const [surveyPage, setSurveyPage] = useState(0);
   const [love, setLove] = useState<Record<string, boolean>>({});
-  const [otherText, setOtherText] = useState("");
   const [issues, setIssues] = useState<Record<string, boolean>>({});
   const [complaintText, setComplaintText] = useState("");
   const scanFired = useRef(false);
@@ -124,7 +123,6 @@ export default function CustomerFlow(props: Props) {
     setSelected(null);
     setSurveyPage(0);
     setLove({});
-    setOtherText("");
     setIssues({});
     setComplaintText("");
     setStep("rating");
@@ -156,11 +154,8 @@ export default function CustomerFlow(props: Props) {
 
       {step === "survey" && (
         <SurveyScreen
-          accent={props.accent}
           page={surveyPages[surveyPage]}
           love={love}
-          otherText={otherText}
-          onOtherText={setOtherText}
           onToggle={(k) => toggle("love", k)}
           onBack={() => (surveyPage > 0 ? setSurveyPage((p) => p - 1) : restart())}
           onContinue={() => {
@@ -175,7 +170,6 @@ export default function CustomerFlow(props: Props) {
           {...props}
           stars={selected ?? 5}
           love={love}
-          otherText={otherText}
           onBack={() => {
             setSurveyPage(surveyPages.length - 1);
             setStep("survey");
@@ -987,25 +981,18 @@ function TagTile({ tag, on, onClick }: { tag: SurveyTag; on: boolean; onClick: (
 }
 
 function SurveyScreen({
-  accent,
   page,
   love,
-  otherText,
-  onOtherText,
   onToggle,
   onBack,
   onContinue,
 }: {
-  accent: string;
   page: { title: string; subtitle: string; tags: SurveyTag[] };
   love: Record<string, boolean>;
-  otherText: string;
-  onOtherText: (v: string) => void;
   onToggle: (k: string) => void;
   onBack: () => void;
   onContinue: () => void;
 }) {
-  const [showOther, setShowOther] = useState(false);
   const count = Object.values(love).filter(Boolean).length;
 
   return (
@@ -1023,69 +1010,10 @@ function SurveyScreen({
             <TagTile key={tag.label} tag={tag} on={!!love[tag.label]} onClick={() => onToggle(tag.label)} />
           ))}
         </div>
-
-        {/* Other (Please Specify) */}
-        <div
-          style={{
-            marginTop: 12,
-            border: showOther ? `1.5px solid ${accent}` : "1.5px solid #ebdfcb",
-            background: showOther ? hexA(accent, 0.06) : "#fffdf8",
-            borderRadius: 14,
-            padding: "12px 13px",
-            transition: "all .16s",
-          }}
-        >
-          <button
-            onClick={() => setShowOther((v) => !v)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 9,
-              width: "100%",
-              background: "none",
-              border: "none",
-              padding: 0,
-              cursor: "pointer",
-              textAlign: "left",
-              WebkitTapHighlightColor: "transparent",
-            }}
-          >
-            <span style={{ flex: "none", display: "flex", alignItems: "center" }}>
-              <PngIcon slug="other" size={20} fallback={<span style={{ fontSize: 16, lineHeight: 1 }}>✏️</span>} />
-            </span>
-            <span style={{ ...HAND, fontSize: 14, fontWeight: 400, color: showOther ? accent : "#5b4d3d" }}>
-              Other (Please Specify)
-            </span>
-          </button>
-          {showOther && (
-            <textarea
-              value={otherText}
-              onChange={(e) => onOtherText(e.target.value)}
-              placeholder="Tell us more…"
-              autoFocus
-              style={{
-                marginTop: 10,
-                width: "100%",
-                minHeight: 56,
-                background: "#fffdf8",
-                border: "1px solid #ebdfcb",
-                borderRadius: 11,
-                padding: 11,
-                color: "var(--ink)",
-                fontSize: 13,
-                fontFamily: "var(--font-sans)",
-                fontWeight: 500,
-                lineHeight: 1.45,
-                resize: "none",
-                outline: "none",
-              }}
-            />
-          )}
-        </div>
       </div>
 
       <div style={{ paddingTop: 14, flex: "none" }}>
-        <button style={primaryBtn(count > 0 || otherText.trim().length > 0)} onClick={onContinue} disabled={count === 0 && !otherText.trim()}>
+        <button style={primaryBtn(count > 0)} onClick={onContinue} disabled={count === 0}>
           Continue
           <ArrowRight />
         </button>
@@ -1125,18 +1053,6 @@ function composeVariants(businessName: string, picks: string[], stars: number): 
       loved ? ` ${lovedCap} stood out.` : ""
     } Great service and a lovely vibe — well worth a visit.`,
   ];
-}
-
-function QuoteIcon({ color }: { color: string }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ flex: "none" }}>
-      <path
-        d="M10 7H6a3 3 0 0 0-3 3v3a3 3 0 0 0 3 3h2v-3H6v-2a1 1 0 0 1 1-1h3zM21 7h-4a3 3 0 0 0-3 3v3a3 3 0 0 0 3 3h2v-3h-2v-2a1 1 0 0 1 1-1h3z"
-        fill={color}
-        opacity={0.55}
-      />
-    </svg>
-  );
 }
 
 /** Left/right chevron control for the review carousel. */
@@ -1203,13 +1119,12 @@ function ReviewScreen({
   googleReviewUrl,
   stars,
   love,
-  otherText,
   sampleReviewsEnabled,
   sampleReviewThreshold,
   sampleReviews,
   onBack,
   onRestart,
-}: Props & { stars: number; love: Record<string, boolean>; otherText: string; onBack: () => void; onRestart: () => void }) {
+}: Props & { stars: number; love: Record<string, boolean>; onBack: () => void; onRestart: () => void }) {
   const picks = Object.keys(love).filter((k) => love[k]);
 
   // When the tenant manages approved sample copy AND this rating meets their configured
@@ -1219,13 +1134,23 @@ function ReviewScreen({
   const options = useSample ? sampleReviews : composeVariants(businessName, picks, stars);
 
   const [selectedIdx, setSelectedIdx] = useState(0);
-  const review = options[selectedIdx] ?? options[0];
+  const selectedReview = options[selectedIdx] ?? options[0];
 
+  // The customer can tweak the chosen draft right here before posting; `reviewText`
+  // holds the live, editable copy and is what we copy / hand off to Google.
+  const [reviewText, setReviewText] = useState(selectedReview);
   const [copied, setCopied] = useState(false);
-  // Match the Figma: show three drafts up front with a "view more" toggle for the rest.
-  const [showAll, setShowAll] = useState(false);
-  const collapsible = options.length > 3;
-  const visibleOptions = showAll || !collapsible ? options : options.slice(0, 3);
+  // All drafts live in the horizontal carousel — swipe or use the side arrows.
+  const visibleOptions = options;
+
+  // Editable draft auto-grows to fit its text so there's no inner scrollbar.
+  const editRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = editRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [reviewText]);
 
   // Horizontal carousel: keep the selected card scrolled into the centre.
   const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -1239,19 +1164,20 @@ function ReviewScreen({
   // Best-effort auto-copy on mount/selection. Mobile browsers often block clipboard
   // writes that aren't tied to a tap, so we only claim success when it actually worked.
   useEffect(() => {
+    setReviewText(selectedReview);
     let active = true;
     setCopied(false);
-    void copyToClipboard(review).then((ok) => {
+    void copyToClipboard(selectedReview).then((ok) => {
       if (active && ok) setCopied(true);
     });
     return () => {
       active = false;
     };
-  }, [review]);
+  }, [selectedReview]);
 
   async function openGoogle() {
     // Copy on the tap itself — the gesture browsers trust most.
-    await copyToClipboard(review);
+    await copyToClipboard(reviewText);
     void recordEvent(subdomain, "google_cta_click", stars);
     window.open(googleReviewUrl || "https://www.google.com/maps", "_blank", "noopener,noreferrer");
     onRestart();
@@ -1299,19 +1225,40 @@ function ReviewScreen({
                     alignItems: "flex-start",
                     gap: 6,
                     textAlign: "left",
-                    background: sel ? "#fffdf8" : "#fbf4e8",
-                    border: `1.5px solid ${sel ? "#C99A5E" : "#ebdfcb"}`,
-                    borderRadius: 16,
+                    background: sel ? "#FFEBD9" : "#fbf4e8",
+                    border: `1px solid ${sel ? "#C08A60" : "#ebdfcb"}`,
+                    borderRadius: 12,
                     padding: "14px 42px 14px 15px",
                     cursor: "pointer",
                     outline: "none",
+                    overflow: "hidden",
+                    filter: sel ? "none" : "grayscale(1)",
                     boxShadow: sel ? "0 10px 24px rgba(160,115,60,0.16)" : "none",
-                    transition: "border-color .16s, box-shadow .16s, background .16s",
+                    transition: "border-color .16s, box-shadow .16s, background .16s, filter .16s",
                     WebkitTapHighlightColor: "transparent",
                   }}
                 >
+                  {/* faint botanical line-art behind the draft (Figma) */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/leaf-decoration.svg"
+                    alt=""
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      bottom: -28,
+                      right: -22,
+                      height: 150,
+                      width: "auto",
+                      opacity: sel ? 0.6 : 0.35,
+                      pointerEvents: "none",
+                      zIndex: 0,
+                    }}
+                  />
                   <div
                     style={{
+                      position: "relative",
+                      zIndex: 1,
                       display: "inline-flex",
                       alignItems: "center",
                       padding: "3px 11px",
@@ -1328,11 +1275,27 @@ function ReviewScreen({
                   >
                     OPTION {i + 1}
                   </div>
-                  <div style={{ ...HAND, fontSize: 13.5, lineHeight: 1.45, color: "#4a3b2c", userSelect: "text" }}>{opt}</div>
-                  <Stars value={stars} />
-                  <div style={{ position: "absolute", top: 12, right: 12 }}>
-                    <QuoteIcon color="#D2A86A" />
+                  <div style={{ ...HAND, position: "relative", zIndex: 1, fontSize: 13.5, lineHeight: 1.45, color: "#4a3b2c", userSelect: "text" }}>{opt}</div>
+                  <div style={{ position: "relative", zIndex: 1 }}>
+                    <Stars value={stars} />
                   </div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/quotes.png"
+                    alt=""
+                    aria-hidden
+                    width={32}
+                    height={26}
+                    style={{
+                      position: "absolute",
+                      top: 12,
+                      right: 14,
+                      zIndex: 1,
+                      display: "block",
+                      objectFit: "contain",
+                      opacity: sel ? 1 : 0.55,
+                    }}
+                  />
                 </button>
               );
             })}
@@ -1346,34 +1309,6 @@ function ReviewScreen({
           )}
         </div>
 
-        {collapsible && (
-          <button
-            type="button"
-            onClick={() => setShowAll((v) => !v)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 5,
-              width: "100%",
-              marginTop: 10,
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: "#7a6a55",
-              fontSize: 12.5,
-              fontWeight: 700,
-              fontFamily: "var(--font-sans)",
-              WebkitTapHighlightColor: "transparent",
-            }}
-          >
-            {showAll ? "view less" : "view more"}
-            <span style={{ transform: showAll ? "rotate(90deg)" : "none", transition: "transform .18s", display: "inline-flex" }}>
-              <ArrowRight color="#7a6a55" />
-            </span>
-          </button>
-        )}
-
         {/* edit-on-Google preview */}
         <div
           style={{
@@ -1386,12 +1321,21 @@ function ReviewScreen({
         >
           <div style={{ fontSize: 12.5, fontWeight: 800, color: "#5b4d3d" }}>Want to edit?</div>
           <div style={{ fontSize: 11, color: "#9a8c7a", marginTop: 2, fontWeight: 500 }}>
-            {copied ? "Copied — you can tweak it on Google before posting." : "You can tweak it on Google before posting."}
+            {copied ? "Copied — edit it here, or tweak it on Google before posting." : "Edit it here, or tweak it on Google before posting."}
           </div>
-          <div
+          <textarea
+            ref={editRef}
+            value={reviewText}
+            onChange={(e) => {
+              setReviewText(e.target.value);
+              setCopied(false);
+            }}
+            aria-label="Edit your review"
             style={{
               ...HAND,
               marginTop: 9,
+              width: "100%",
+              minHeight: 96,
               background: "#fffdf8",
               border: "1px solid #ebdfcb",
               borderRadius: 11,
@@ -1399,15 +1343,11 @@ function ReviewScreen({
               fontSize: 13,
               lineHeight: 1.4,
               color: "#4a3b2c",
+              resize: "none",
+              outline: "none",
+              overflow: "hidden",
             }}
-          >
-            {review}
-          </div>
-          {otherText.trim() && (
-            <div style={{ fontSize: 10.5, color: "#b0a28e", marginTop: 7, fontWeight: 500, fontStyle: "italic" }}>
-              Your note: “{otherText.trim()}”
-            </div>
-          )}
+          />
         </div>
       </div>
 
